@@ -4,21 +4,65 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { getImageUrl } from '@/lib/utils/image';
-import { MapPin, Clock, Store } from 'lucide-react';
+import { MapPin, Store, UtensilsCrossed } from 'lucide-react';
 import { StoreApprovalAlert } from '@/components/user/store-approval-alert';
 
-async function getStores() {
+async function getProducts() {
   const supabase = await createClient();
+  
+  // Get products with store info using join
   const { data, error } = await supabase
-    .from('stores')
-    .select('*')
-    .eq('status', 'approved')
-    .eq('is_open', true)
+    .from('products')
+    .select(`
+      *,
+      store:stores!inner(id, name, address, status, is_open)
+    `)
+    .eq('store.status', 'approved')
+    .eq('store.is_open', true)
+    .eq('is_available', true)
+    .gt('stock', 0)
     .order('created_at', { ascending: false })
-    .limit(12);
+    .limit(24);
 
   if (error) {
-    console.error('Error fetching stores:', error);
+    console.error('❌ Error fetching products:', error);
+    // Fallback: try without join
+    const { data: stores } = await supabase
+      .from('stores')
+      .select('id')
+      .eq('status', 'approved')
+      .eq('is_open', true);
+    
+    if (stores && stores.length > 0) {
+      const storeIds = stores.map(s => s.id);
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .in('store_id', storeIds)
+        .eq('is_available', true)
+        .gt('stock', 0)
+        .order('created_at', { ascending: false })
+        .limit(24);
+      
+      if (productsError) {
+        return [];
+      }
+      
+      // Fetch store info separately
+      const productsWithStore = await Promise.all(
+        (productsData || []).map(async (product) => {
+          const { data: storeData } = await supabase
+            .from('stores')
+            .select('id, name, address')
+            .eq('id', product.store_id)
+            .single();
+          return { ...product, store: storeData };
+        })
+      );
+      
+      return productsWithStore;
+    }
+    
     return [];
   }
 
@@ -26,7 +70,7 @@ async function getStores() {
 }
 
 export default async function UserHomePage() {
-  const stores = await getStores();
+  const products = await getProducts();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -66,10 +110,10 @@ export default async function UserHomePage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-        <h1 className="text-3xl font-bold mb-2">Daftar Toko</h1>
-        <p className="text-muted-foreground">
-          Pilih toko favorit Anda dan pesan makanan lezat
-        </p>
+            <h1 className="text-3xl font-bold mb-2">Menu Makanan</h1>
+            <p className="text-muted-foreground">
+              Pilih makanan favorit Anda dan pesan langsung dari toko
+            </p>
           </div>
           {user && !userStore && (
             <Link href="/user/open-store">
@@ -87,51 +131,57 @@ export default async function UserHomePage() {
         </div>
       </div>
 
-      {stores.length === 0 ? (
+      {products.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Belum ada toko yang tersedia saat ini.</p>
+            <UtensilsCrossed className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Belum ada menu yang tersedia saat ini.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {stores.map((store) => (
-            <Link key={store.id} href={`/user/stores/${store.id}`}>
-              <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {products.map((product: any) => (
+            <Link 
+              key={product.id} 
+              href={`/user/stores/${product.store.id}?productId=${product.id}`}
+            >
+              <Card className="h-full hover:shadow-lg transition-all cursor-pointer hover:scale-[1.02]">
                 <div className="relative h-48 w-full">
-                  {store.banner_url ? (
+                  {product.image_url ? (
                     <Image
-                      src={getImageUrl(store.banner_url, 'medium') || '/placeholder-store.jpg'}
-                      alt={store.name}
+                      src={getImageUrl(product.image_url, 'medium') || '/placeholder-food.jpg'}
+                      alt={product.name}
                       fill
                       className="object-cover rounded-t-lg"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-orange-200 to-red-200 dark:from-orange-900 dark:to-red-900 flex items-center justify-center rounded-t-lg">
-                      <span className="text-4xl">🏪</span>
+                    <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 flex items-center justify-center rounded-t-lg">
+                      <span className="text-5xl">🍽️</span>
                     </div>
                   )}
                 </div>
-                <CardHeader>
-                  <CardTitle className="line-clamp-1">{store.name}</CardTitle>
-                  <CardDescription className="line-clamp-2">
-                    {store.description || 'Toko makanan terpercaya'}
+                <CardHeader className="pb-2">
+                  <CardTitle className="line-clamp-1 text-lg">{product.name}</CardTitle>
+                  <CardDescription className="line-clamp-1 text-xs">
+                    {product.store.name}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span className="line-clamp-1">{store.address}</span>
-                    </div>
-                    {store.phone && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{store.phone}</span>
-                      </div>
+                <CardContent className="pt-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold text-primary">
+                      Rp {product.price.toLocaleString('id-ID')}
+                    </span>
+                    {product.stock > 0 ? (
+                      <span className="text-xs text-muted-foreground">Stok: {product.stock}</span>
+                    ) : (
+                      <span className="text-xs text-destructive">Habis</span>
                     )}
                   </div>
-                  <Button className="w-full mt-4">Lihat Menu</Button>
+                  {product.description && (
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                      {product.description}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </Link>

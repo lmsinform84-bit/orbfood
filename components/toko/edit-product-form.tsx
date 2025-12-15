@@ -66,34 +66,103 @@ export function EditProductForm({ product }: EditProductFormProps) {
 
       // Upload new image if provided
       if (image) {
-        const fileExt = image.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        // Delete old image if exists
+        if (product.image_url) {
+          try {
+            const url = new URL(product.image_url);
+            const pathParts = url.pathname.split('/');
+            const bucketIndex = pathParts.findIndex(part => part === 'product-images');
+            if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+              const oldFilePath = pathParts.slice(bucketIndex + 1).join('/');
+              await supabase.storage
+                .from('product-images')
+                .remove([oldFilePath]);
+            }
+          } catch (oldImageError) {
+            console.warn('Failed to delete old image:', oldImageError);
+            // Continue with new image upload
+          }
+        }
+
+        // Upload new image
+        const fileExt = image.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        // Path format: products/{store_id}/{filename}
         const filePath = `products/${product.store_id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
+        console.log('📤 Uploading new image to:', filePath);
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('product-images')
-          .upload(filePath, image);
+          .upload(filePath, image, {
+            cacheControl: '3600',
+            upsert: false,
+          });
 
-        if (uploadError) throw uploadError;
-
-        const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-        imageUrl = data.publicUrl;
+        if (uploadError) {
+          console.error('❌ Upload error:', uploadError);
+          if (uploadError.message?.includes('already exists')) {
+            // Try with different filename
+            const retryFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-retry.${fileExt}`;
+            const retryPath = `products/${product.store_id}/${retryFileName}`;
+            const { error: retryError } = await supabase.storage
+              .from('product-images')
+              .upload(retryPath, image, { cacheControl: '3600', upsert: false });
+            
+            if (retryError) {
+              throw new Error(`Gagal upload gambar: ${retryError.message}`);
+            }
+            
+            const { data: retryUrlData } = supabase.storage
+              .from('product-images')
+              .getPublicUrl(retryPath);
+            imageUrl = retryUrlData?.publicUrl || null;
+          } else {
+            throw new Error(`Gagal upload gambar: ${uploadError.message}`);
+          }
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath);
+          
+          if (!urlData?.publicUrl) {
+            throw new Error('Gagal mendapatkan URL gambar');
+          }
+          
+          imageUrl = urlData.publicUrl;
+          console.log('✅ New image uploaded successfully:', imageUrl);
+        }
       }
 
-      const { error } = await supabase
-        .from('products')
-        .update({
-          name: formData.name,
-          description: formData.description || null,
-          price: parseFloat(formData.price),
-          stock: parseInt(formData.stock),
-          is_available: formData.is_available,
-          category: formData.category || null,
-          image_url: imageUrl,
-        })
-        .eq('id', product.id);
+      const updateData: any = {
+        name: formData.name,
+        description: formData.description || null,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock),
+        is_available: formData.is_available,
+        category: formData.category || null,
+        updated_at: new Date().toISOString(),
+      };
 
-      if (error) throw error;
+      // Only update image_url if a new image was uploaded
+      if (imageUrl !== product.image_url) {
+        updateData.image_url = imageUrl;
+      }
+
+      const { error, data } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', product.id)
+        .select();
+
+      if (error) {
+        console.error('Update error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error('Produk tidak ditemukan atau tidak dapat diupdate');
+      }
 
       toast({
         title: 'Menu berhasil diperbarui',

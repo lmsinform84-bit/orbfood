@@ -72,18 +72,55 @@ export default function NewProductPage() {
 
       // Upload image if provided
       if (image) {
-        const fileExt = image.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        const fileExt = image.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        // Path format: products/{store_id}/{filename}
         const filePath = `products/${store.id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
+        console.log('📤 Uploading image to:', filePath);
+
+        // Upload with proper options
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('product-images')
-          .upload(filePath, image);
+          .upload(filePath, image, {
+            cacheControl: '3600',
+            upsert: false,
+          });
 
-        if (uploadError) throw uploadError;
-
-        const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-        imageUrl = data.publicUrl;
+        if (uploadError) {
+          console.error('❌ Upload error:', uploadError);
+          // Check if it's a duplicate file error
+          if (uploadError.message?.includes('already exists')) {
+            // Try with different filename
+            const retryFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-retry.${fileExt}`;
+            const retryPath = `products/${store.id}/${retryFileName}`;
+            const { error: retryError } = await supabase.storage
+              .from('product-images')
+              .upload(retryPath, image, { cacheControl: '3600', upsert: false });
+            
+            if (retryError) {
+              throw new Error(`Gagal upload gambar: ${retryError.message}`);
+            }
+            
+            const { data: retryUrlData } = supabase.storage
+              .from('product-images')
+              .getPublicUrl(retryPath);
+            imageUrl = retryUrlData?.publicUrl || null;
+          } else {
+            throw new Error(`Gagal upload gambar: ${uploadError.message}`);
+          }
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath);
+          
+          if (!urlData?.publicUrl) {
+            throw new Error('Gagal mendapatkan URL gambar');
+          }
+          
+          imageUrl = urlData.publicUrl;
+          console.log('✅ Image uploaded successfully:', imageUrl);
+        }
       }
 
       // Create product

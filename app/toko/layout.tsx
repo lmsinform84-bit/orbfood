@@ -1,9 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { Navbar } from '@/components/navbar';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Package, ShoppingBag, Settings, Store } from 'lucide-react';
+import { NavigationMenu } from '@/components/navigation-menu';
 
 export default async function TokoLayout({
   children,
@@ -22,37 +20,37 @@ export default async function TokoLayout({
     redirect('/user/home');
   }
 
+  const navItems = [
+    {
+      href: '/toko/dashboard',
+      label: 'Dashboard',
+      iconName: 'LayoutDashboard' as const,
+    },
+    {
+      href: '/toko/menu',
+      label: 'Menu',
+      iconName: 'Package' as const,
+    },
+    {
+      href: '/toko/orders',
+      label: 'Pesanan',
+      iconName: 'ShoppingBag' as const,
+    },
+    {
+      href: '/toko/settings',
+      label: 'Pengaturan',
+      iconName: 'Settings' as const,
+    },
+  ];
+
   return (
     <>
       <Navbar userRole={user.role} userName={user.full_name || undefined} />
-      <div className="border-b bg-background">
+      <div className="border-b bg-muted/40">
         <div className="container mx-auto px-4">
-          <nav className="flex gap-2 py-2">
-            <Link href="/toko/dashboard">
-              <Button variant="ghost" size="sm">
-                <Store className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
-            </Link>
-            <Link href="/toko/menu">
-              <Button variant="ghost" size="sm">
-                <Package className="h-4 w-4 mr-2" />
-                Menu
-              </Button>
-            </Link>
-            <Link href="/toko/orders">
-              <Button variant="ghost" size="sm">
-                <ShoppingBag className="h-4 w-4 mr-2" />
-                Pesanan
-              </Button>
-            </Link>
-            <Link href="/toko/settings">
-              <Button variant="ghost" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Pengaturan
-              </Button>
-            </Link>
-          </nav>
+          <div className="flex h-12 items-center">
+            <NavigationMenu items={navItems} />
+          </div>
         </div>
       </div>
       <main className="container mx-auto px-4 py-6">{children}</main>

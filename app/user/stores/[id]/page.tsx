@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils/image';
 import { AddToCartButton } from '@/components/user/add-to-cart-button';
+import { ProductHighlight } from '@/components/user/product-highlight';
 import { MapPin, Phone, Mail } from 'lucide-react';
 
 async function getStore(id: string) {
@@ -39,13 +40,24 @@ async function getProducts(storeId: string) {
   return data || [];
 }
 
-export default async function StorePage({ params }: { params: { id: string } }) {
+export default async function StorePage({ 
+  params, 
+  searchParams 
+}: { 
+  params: { id: string };
+  searchParams: { productId?: string };
+}) {
   const store = await getStore(params.id);
   const products = await getProducts(params.id);
 
   if (!store) {
     redirect('/user/home');
   }
+
+  // Get selected product if productId is provided
+  const selectedProduct = searchParams.productId 
+    ? products.find((p: any) => p.id === searchParams.productId)
+    : null;
 
   return (
     <div>
@@ -90,6 +102,12 @@ export default async function StorePage({ params }: { params: { id: string } }) 
 
       <div>
         <h2 className="text-2xl font-bold mb-4">Menu</h2>
+        
+        {/* Show selected product highlight at the top */}
+        {selectedProduct && (
+          <ProductHighlight product={selectedProduct} />
+        )}
+
         {products.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -98,46 +116,52 @@ export default async function StorePage({ params }: { params: { id: string } }) 
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product) => (
-              <Card key={product.id}>
-                <div className="relative h-48 w-full">
-                  {product.image_url ? (
-                    <Image
-                      src={getImageUrl(product.image_url, 'medium') || '/placeholder-food.jpg'}
-                      alt={product.name}
-                      fill
-                      className="object-cover rounded-t-lg"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 flex items-center justify-center rounded-t-lg">
-                      <span className="text-4xl">🍽️</span>
-                    </div>
-                  )}
-                </div>
-                <CardHeader>
-                  <CardTitle className="line-clamp-1">{product.name}</CardTitle>
-                  <CardDescription className="line-clamp-2">
-                    {product.description || 'Menu lezat dari toko kami'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-2xl font-bold text-primary">
-                      Rp {product.price.toLocaleString('id-ID')}
-                    </span>
-                    {product.stock > 0 ? (
-                      <span className="text-sm text-muted-foreground">Stok: {product.stock}</span>
+            {products.map((product) => {
+              const isSelected = selectedProduct?.id === product.id;
+              return (
+                <Card 
+                  key={product.id}
+                  className={isSelected ? 'border-2 border-primary shadow-md' : ''}
+                >
+                  <div className="relative h-48 w-full">
+                    {product.image_url ? (
+                      <Image
+                        src={getImageUrl(product.image_url, 'medium') || '/placeholder-food.jpg'}
+                        alt={product.name}
+                        fill
+                        className="object-cover rounded-t-lg"
+                      />
                     ) : (
-                      <span className="text-sm text-destructive">Habis</span>
+                      <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 flex items-center justify-center rounded-t-lg">
+                        <span className="text-4xl">🍽️</span>
+                      </div>
                     )}
                   </div>
-                  <AddToCartButton
-                    product={product}
-                    disabled={product.stock === 0}
-                  />
-                </CardContent>
-              </Card>
-            ))}
+                  <CardHeader>
+                    <CardTitle className="line-clamp-1">{product.name}</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      {product.description || 'Menu lezat dari toko kami'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-2xl font-bold text-primary">
+                        Rp {product.price.toLocaleString('id-ID')}
+                      </span>
+                      {product.stock > 0 ? (
+                        <span className="text-sm text-muted-foreground">Stok: {product.stock}</span>
+                      ) : (
+                        <span className="text-sm text-destructive">Habis</span>
+                      )}
+                    </div>
+                    <AddToCartButton
+                      product={product}
+                      disabled={product.stock === 0}
+                    />
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

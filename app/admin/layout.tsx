@@ -1,9 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { Navbar } from '@/components/navbar';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Store, Users, BarChart3, Settings } from 'lucide-react';
+import { NavigationMenu } from '@/components/navigation-menu';
 
 export default async function AdminLayout({
   children,
@@ -22,37 +20,37 @@ export default async function AdminLayout({
     redirect('/user/home');
   }
 
+  const navItems = [
+    {
+      href: '/admin/dashboard',
+      label: 'Dashboard',
+      iconName: 'BarChart3' as const,
+    },
+    {
+      href: '/admin/stores',
+      label: 'Kelola Toko',
+      iconName: 'Store' as const,
+    },
+    {
+      href: '/admin/users',
+      label: 'Kelola Pengguna',
+      iconName: 'Users' as const,
+    },
+    {
+      href: '/admin/orders',
+      label: 'Pesanan',
+      iconName: 'ShoppingBag' as const,
+    },
+  ];
+
   return (
     <>
       <Navbar userRole={user.role} userName={user.full_name || undefined} />
-      <div className="border-b bg-background">
+      <div className="border-b bg-muted/40">
         <div className="container mx-auto px-4">
-          <nav className="flex gap-2 py-2">
-            <Link href="/admin/dashboard">
-              <Button variant="ghost" size="sm">
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
-            </Link>
-            <Link href="/admin/stores">
-              <Button variant="ghost" size="sm">
-                <Store className="h-4 w-4 mr-2" />
-                Toko
-              </Button>
-            </Link>
-            <Link href="/admin/users">
-              <Button variant="ghost" size="sm">
-                <Users className="h-4 w-4 mr-2" />
-                Pengguna
-              </Button>
-            </Link>
-            <Link href="/admin/orders">
-              <Button variant="ghost" size="sm">
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Pesanan
-              </Button>
-            </Link>
-          </nav>
+          <div className="flex h-12 items-center">
+            <NavigationMenu items={navItems} />
+          </div>
         </div>
       </div>
       <main className="container mx-auto px-4 py-6">{children}</main>
