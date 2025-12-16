@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { Navbar } from '@/components/navbar';
 import { NavigationMenu } from '@/components/navigation-menu';
+import { BottomNavigation } from '@/components/toko/bottom-navigation';
 
 export default async function TokoLayout({
   children,
@@ -37,6 +38,11 @@ export default async function TokoLayout({
       iconName: 'ShoppingBag' as const,
     },
     {
+      href: '/toko/invoice',
+      label: 'Invoice',
+      iconName: 'FileText' as const,
+    },
+    {
       href: '/toko/settings',
       label: 'Pengaturan',
       iconName: 'Settings' as const,
@@ -46,14 +52,19 @@ export default async function TokoLayout({
   return (
     <>
       <Navbar userRole={user.role} userName={user.full_name || undefined} />
-      <div className="border-b bg-muted/40">
+      {/* Desktop Navigation - hidden on mobile */}
+      <div className="hidden border-b bg-muted/40 md:block">
         <div className="container mx-auto px-4">
           <div className="flex h-12 items-center">
             <NavigationMenu items={navItems} />
           </div>
         </div>
       </div>
-      <main className="container mx-auto px-4 py-6">{children}</main>
+      <main className="container mx-auto px-4 py-6 pb-20 md:pb-6">
+        {children}
+      </main>
+      {/* Mobile Bottom Navigation */}
+      <BottomNavigation />
     </>
   );
 }

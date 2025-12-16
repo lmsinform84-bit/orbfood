@@ -76,6 +76,7 @@ export interface Order {
   status: OrderStatus;
   delivery_address: string;
   notes: string | null;
+  payment_method: string | null;
   created_at: string;
   updated_at: string;
 }

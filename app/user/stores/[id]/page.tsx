@@ -5,13 +5,17 @@ import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils/image';
 import { AddToCartButton } from '@/components/user/add-to-cart-button';
 import { ProductHighlight } from '@/components/user/product-highlight';
-import { MapPin, Phone, Mail } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, CreditCard } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 async function getStore(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('stores')
-    .select('*')
+    .select(`
+      *,
+      settings:store_settings(delivery_fee, payment_methods)
+    `)
     .eq('id', id)
     .eq('status', 'approved')
     .single();
@@ -25,12 +29,31 @@ async function getStore(id: string) {
 
 async function getProducts(storeId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  
+  // First try with is_available filter
+  let { data, error } = await supabase
     .from('products')
     .select('*')
     .eq('store_id', storeId)
     .eq('is_available', true)
     .order('created_at', { ascending: false });
+
+  // If no products found, try without is_available filter (in case field is null)
+  if ((!data || data.length === 0) && !error) {
+    const { data: allData, error: allError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false });
+    
+    if (!allError && allData) {
+      // Filter manually to include null is_available as available
+      data = allData.filter((p: any) => p.is_available !== false);
+      error = null;
+    } else {
+      error = allError;
+    }
+  }
 
   if (error) {
     console.error('Error fetching products:', error);
@@ -76,11 +99,19 @@ export default async function StorePage({
             </div>
           )}
         </div>
-        <h1 className="text-3xl font-bold mb-2">{store.name}</h1>
-        {store.description && (
-          <p className="text-muted-foreground mb-4">{store.description}</p>
-        )}
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">{store.name}</h1>
+            {store.description && (
+              <p className="text-muted-foreground mb-4">{store.description}</p>
+            )}
+          </div>
+          <Badge variant={store.is_open ? 'default' : 'secondary'} className="ml-4">
+            {store.is_open ? 'Buka' : 'Tutup'}
+          </Badge>
+        </div>
+        
+        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
             <span>{store.address}</span>
@@ -98,6 +129,38 @@ export default async function StorePage({
             </div>
           )}
         </div>
+
+        {/* Payment Methods */}
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Metode Pembayaran
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {(store as any).settings?.payment_methods ? (
+                JSON.parse((store as any).settings.payment_methods || '[]').map((method: string) => (
+                  <Badge key={method} variant="outline">
+                    {method === 'COD' ? 'COD (Bayar di Tempat)' : 
+                     method === 'TRANSFER' ? 'Transfer Bank' :
+                     method === 'QRIS' ? 'QRIS' : method}
+                  </Badge>
+                ))
+              ) : (
+                <>
+                  <Badge variant="outline">COD (Bayar di Tempat)</Badge>
+                  <Badge variant="outline">Transfer Bank</Badge>
+                  <Badge variant="outline">QRIS</Badge>
+                </>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              💡 Pembayaran dilakukan langsung ke toko, bukan melalui aplikasi.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div>

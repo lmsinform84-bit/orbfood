@@ -14,6 +14,7 @@ import { compressImage } from '@/lib/utils/image';
 import { Store, StoreSettings } from '@/types/database';
 import { getImageUrl } from '@/lib/utils/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { QRISUpload } from './qris-upload';
 
 interface StoreSettingsFormProps {
   store: Store | null;
@@ -260,11 +261,120 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
   };
 
   return (
-    <Tabs defaultValue="profile" className="space-y-4">
+    <Tabs defaultValue="settings" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="profile">Profil Toko</TabsTrigger>
         <TabsTrigger value="settings">Pengaturan</TabsTrigger>
+        <TabsTrigger value="profile">Profil Toko</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="settings">
+        {store ? (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Pengaturan Toko</CardTitle>
+                <CardDescription>Atur preferensi dan pengaturan toko</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSettingsSubmit} className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="auto_accept"
+                      checked={settingsForm.auto_accept_orders}
+                      onCheckedChange={(checked) =>
+                        setSettingsForm({ ...settingsForm, auto_accept_orders: checked })
+                      }
+                    />
+                    <Label htmlFor="auto_accept">Otomatis terima pesanan</Label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="min_order">Minimum Pemesanan (Rp)</Label>
+                    <Input
+                      id="min_order"
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={settingsForm.min_order_amount}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, min_order_amount: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery_fee">Ongkos Kirim (Rp)</Label>
+                    <Input
+                      id="delivery_fee"
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={settingsForm.delivery_fee}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, delivery_fee: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="prep_time">Estimasi Waktu Persiapan (menit)</Label>
+                    <Input
+                      id="prep_time"
+                      type="number"
+                      min="1"
+                      value={settingsForm.estimated_preparation_time}
+                      onChange={(e) =>
+                        setSettingsForm({
+                          ...settingsForm,
+                          estimated_preparation_time: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Menyimpan...' : 'Simpan Pengaturan'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* QRIS Toko Section */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>QRIS Toko</CardTitle>
+                <CardDescription>
+                  Upload QRIS toko yang akan ditampilkan kepada pelanggan saat checkout
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <QRISUpload
+                  storeId={store.id}
+                  type="store"
+                  currentQRIS={store.qris_url}
+                  onUploadSuccess={() => {
+                    router.refresh();
+                  }}
+                />
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Catatan:</strong> QRIS ini akan ditampilkan kepada pelanggan saat checkout. 
+                    Pastikan QRIS yang diupload adalah QRIS statis yang valid dan dapat menerima pembayaran.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">
+                Buat profil toko terlebih dahulu untuk mengakses pengaturan.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </TabsContent>
 
       <TabsContent value="profile">
         <Card>
@@ -367,87 +477,6 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
             </form>
           </CardContent>
         </Card>
-      </TabsContent>
-
-      <TabsContent value="settings">
-        {store ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Pengaturan Toko</CardTitle>
-              <CardDescription>Atur preferensi dan pengaturan toko</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSettingsSubmit} className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="auto_accept"
-                    checked={settingsForm.auto_accept_orders}
-                    onCheckedChange={(checked) =>
-                      setSettingsForm({ ...settingsForm, auto_accept_orders: checked })
-                    }
-                  />
-                  <Label htmlFor="auto_accept">Otomatis terima pesanan</Label>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="min_order">Minimum Pemesanan (Rp)</Label>
-                  <Input
-                    id="min_order"
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={settingsForm.min_order_amount}
-                    onChange={(e) =>
-                      setSettingsForm({ ...settingsForm, min_order_amount: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="delivery_fee">Ongkos Kirim (Rp)</Label>
-                  <Input
-                    id="delivery_fee"
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={settingsForm.delivery_fee}
-                    onChange={(e) =>
-                      setSettingsForm({ ...settingsForm, delivery_fee: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="prep_time">Estimasi Waktu Persiapan (menit)</Label>
-                  <Input
-                    id="prep_time"
-                    type="number"
-                    min="1"
-                    value={settingsForm.estimated_preparation_time}
-                    onChange={(e) =>
-                      setSettingsForm({
-                        ...settingsForm,
-                        estimated_preparation_time: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Menyimpan...' : 'Simpan Pengaturan'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                Buat profil toko terlebih dahulu untuk mengakses pengaturan.
-              </p>
-            </CardContent>
-          </Card>
-        )}
       </TabsContent>
     </Tabs>
   );

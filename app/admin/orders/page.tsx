@@ -6,7 +6,7 @@ import { id } from 'date-fns/locale/id';
 import { OrderStatus } from '@/types/database';
 
 async function getOrders() {
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('orders')
     .select(`

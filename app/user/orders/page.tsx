@@ -82,21 +82,22 @@ export default async function OrdersPage() {
       ) : (
         <div className="space-y-4">
           {orders.map((order: any) => (
-            <Card key={order.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="mb-2">{order.store?.name || 'Toko'}</CardTitle>
-                    <CardDescription>
-                      {format(new Date(order.created_at), 'dd MMMM yyyy, HH:mm', { locale: id })}
-                    </CardDescription>
+            <Link key={order.id} href={`/user/orders/${order.id}`}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="mb-2">{order.store?.name || 'Toko'}</CardTitle>
+                      <CardDescription>
+                        {format(new Date(order.created_at), 'dd MMMM yyyy, HH:mm', { locale: id })}
+                      </CardDescription>
+                    </div>
+                    <Badge variant={getStatusBadgeVariant(order.status)}>
+                      {getStatusLabel(order.status)}
+                    </Badge>
                   </div>
-                  <Badge variant={getStatusBadgeVariant(order.status)}>
-                    {getStatusLabel(order.status)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
+                </CardHeader>
+                <CardContent>
                 <div className="space-y-2 mb-4">
                   {order.items?.map((item: any) => (
                     <div key={item.id} className="flex justify-between text-sm">
@@ -134,7 +135,8 @@ export default async function OrdersPage() {
                   )}
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

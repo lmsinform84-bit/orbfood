@@ -14,11 +14,9 @@ export default async function UserLayout({
     redirect('/login');
   }
 
-  return (
-    <>
-      <Navbar userRole={user.role} userName={user.full_name || undefined} />
-      <main className="container mx-auto px-4 py-6">{children}</main>
-    </>
-  );
+  // Home page handles its own layout
+  // Other pages use default navbar
+  // This will be checked in each page component
+  return <>{children}</>;
 }
 

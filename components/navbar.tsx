@@ -114,6 +114,18 @@ export function Navbar({ userRole, userName }: NavbarProps) {
                     <span className="sr-only">Keranjang</span>
                   </Button>
                 </Link>
+                <Link href="/user/profile">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      pathname === '/user/profile' && "bg-accent"
+                    )}
+                  >
+                    <User className="h-5 w-5" />
+                    <span className="sr-only">Profil</span>
+                  </Button>
+                </Link>
               </>
             )}
 

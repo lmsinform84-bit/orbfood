@@ -41,6 +41,16 @@ export default async function AdminLayout({
       label: 'Pesanan',
       iconName: 'ShoppingBag' as const,
     },
+    {
+      href: '/admin/areas',
+      label: 'Wilayah',
+      iconName: 'MapPin' as const,
+    },
+    {
+      href: '/admin/payment',
+      label: 'Pembayaran',
+      iconName: 'CreditCard' as const,
+    },
   ];
 
   return (

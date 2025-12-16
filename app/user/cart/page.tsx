@@ -7,7 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, CreditCard, AlertCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils/image';
 import { supabase } from '@/lib/supabase/client';
@@ -29,6 +37,8 @@ export default function CartPage() {
   const [loading, setLoading] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('QRIS');
+  const [deliveryFee, setDeliveryFee] = useState(0);
 
   useEffect(() => {
     // Load cart from localStorage
@@ -61,7 +71,23 @@ export default function CartPage() {
       }
     };
     loadUserAddress();
-  }, []);
+
+    // Load delivery fee from first store in cart
+    const loadDeliveryFee = async () => {
+      if (cart.length > 0) {
+        const firstStoreId = cart[0].storeId;
+        const { data } = await supabase
+          .from('store_settings')
+          .select('delivery_fee')
+          .eq('store_id', firstStoreId)
+          .single();
+        if (data?.delivery_fee) {
+          setDeliveryFee(data.delivery_fee);
+        }
+      }
+    };
+    loadDeliveryFee();
+  }, [cart]);
 
   const updateQuantity = (productId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -83,6 +109,7 @@ export default function CartPage() {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = subtotal + deliveryFee;
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -103,92 +130,29 @@ export default function CartPage() {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      // Group cart items by store
-      const stores = new Map<string, CartItem[]>();
-      cart.forEach((item) => {
-        if (!stores.has(item.storeId)) {
-          stores.set(item.storeId, []);
-        }
-        stores.get(item.storeId)!.push(item);
-      });
-
-      // Create orders for each store
-      for (const [storeId, items] of stores.entries()) {
-        const storeSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        
-        // Get store settings for delivery fee
-        const { data: settings } = await supabase
-          .from('store_settings')
-          .select('delivery_fee')
-          .eq('store_id', storeId)
-          .single();
-
-        const deliveryFee = settings?.delivery_fee || 0;
-        const finalTotal = storeSubtotal + deliveryFee;
-
-        // Create order
-        const { data: order, error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            user_id: user.id,
-            store_id: storeId,
-            total_price: storeSubtotal,
-            delivery_fee: deliveryFee,
-            final_total: finalTotal,
-            status: 'pending',
-            delivery_address: deliveryAddress,
-            notes: notes || null,
-          })
-          .select()
-          .single();
-
-        if (orderError) throw orderError;
-
-        // Create order items
-        const orderItems = items.map((item) => ({
-          order_id: order.id,
-          product_id: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-          subtotal: item.price * item.quantity,
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(orderItems);
-
-        if (itemsError) throw itemsError;
-      }
-
-      // Clear cart
-      localStorage.removeItem('cart');
-      setCart([]);
-
+    if (!paymentMethod) {
       toast({
-        title: 'Pesanan berhasil dibuat',
-        description: 'Pesanan Anda sedang diproses',
-      });
-
-      router.push('/user/orders');
-    } catch (error: any) {
-      toast({
-        title: 'Checkout gagal',
-        description: error.message || 'Terjadi kesalahan saat checkout',
+        title: 'Metode pembayaran diperlukan',
+        description: 'Mohon pilih metode pembayaran',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    // Redirect to confirmation page with cart data
+    const checkoutData = {
+      cart,
+      deliveryAddress,
+      notes,
+      paymentMethod,
+      subtotal,
+      deliveryFee,
+      total,
+    };
+    localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
+    router.push('/user/checkout');
   };
+
 
   if (cart.length === 0) {
     return (
@@ -289,22 +253,49 @@ export default function CartPage() {
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payment">Metode Pembayaran *</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger id="payment">
+                    <SelectValue placeholder="Pilih metode pembayaran" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="QRIS">QRIS Toko</SelectItem>
+                    <SelectItem value="COD">Cash / COD (Bayar di Tempat)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>Penting:</strong> Pembayaran dilakukan langsung ke toko, bukan melalui aplikasi.
+                </AlertDescription>
+              </Alert>
+
               <div className="pt-4 border-t space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
                   <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                 </div>
-                <div className="flex justify-between font-bold text-lg">
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Ongkir</span>
+                    <span>Rp {deliveryFee.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Total</span>
-                  <span className="text-primary">Rp {subtotal.toLocaleString('id-ID')}</span>
+                  <span className="text-primary">Rp {total.toLocaleString('id-ID')}</span>
                 </div>
               </div>
               <Button
                 className="w-full"
                 onClick={handleCheckout}
-                disabled={loading || !deliveryAddress.trim()}
+                disabled={loading || !deliveryAddress.trim() || !paymentMethod}
               >
-                {loading ? 'Memproses...' : 'Checkout'}
+                {loading ? 'Memproses...' : 'Lanjut ke Konfirmasi'}
               </Button>
             </CardContent>
           </Card>

@@ -27,16 +27,17 @@ export function ProductList({ products }: ProductListProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       {products.map((product) => (
-        <Card key={product.id}>
-          <div className="relative h-48 w-full">
+        <Card key={product.id} className="hover:shadow-md transition-shadow">
+          <div className="relative h-40 md:h-48 w-full">
             {product.image_url ? (
               <Image
                 src={getImageUrl(product.image_url, 'medium') || '/placeholder-food.jpg'}
                 alt={product.name}
                 fill
                 className="object-cover rounded-t-lg"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 flex items-center justify-center rounded-t-lg">
@@ -44,29 +45,31 @@ export function ProductList({ products }: ProductListProps) {
               </div>
             )}
           </div>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <CardTitle className="line-clamp-1">{product.name}</CardTitle>
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-2">
+              <CardTitle className="line-clamp-1 text-lg">{product.name}</CardTitle>
               {!product.is_available && (
-                <Badge variant="secondary">Tidak Tersedia</Badge>
+                <Badge variant="secondary" className="text-xs">Tidak Tersedia</Badge>
               )}
             </div>
-            <CardDescription className="line-clamp-2">
+            <CardDescription className="line-clamp-2 text-sm">
               {product.description || 'Menu lezat dari toko kami'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-2xl font-bold text-primary">
+          <CardContent className="pt-0">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xl md:text-2xl font-bold text-primary">
                 Rp {product.price.toLocaleString('id-ID')}
               </span>
-              <span className="text-sm text-muted-foreground">Stok: {product.stock}</span>
+              <span className="text-xs md:text-sm text-muted-foreground">
+                Stok: {product.stock}
+              </span>
             </div>
             <div className="flex gap-2">
               <Link href={`/toko/menu/${product.id}/edit`} className="flex-1">
-                <Button variant="outline" className="w-full">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
+                <Button variant="outline" className="w-full text-sm" size="sm">
+                  <Edit className="h-4 w-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
               </Link>
               <DeleteProductButton productId={product.id} productName={product.name} />
