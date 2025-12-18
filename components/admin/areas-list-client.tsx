@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,31 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, RefreshCw, MapPin, Store } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+
+// Helper to fetch areas using admin client via API
+async function fetchAreasAdmin() {
+  const response = await fetch('/api/admin/areas', { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error('Failed to fetch areas');
+  }
+  return response.json();
+}
 
 interface Area {
   id: string;
@@ -52,12 +77,26 @@ export function AreasListClient({ initialAreas }: AreasListClientProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
   });
+
+  // Sync with server data on mount and when refreshing
+  useEffect(() => {
+    setAreas(initialAreas);
+    setCurrentPage(1); // Reset to first page when data changes
+  }, [initialAreas]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(areas.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedAreas = areas.slice(startIndex, endIndex);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -77,16 +116,32 @@ export function AreasListClient({ initialAreas }: AreasListClientProps) {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('areas')
-        .insert({
+      // Use API route to insert area (bypasses RLS)
+      const response = await fetch('/api/admin/areas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: formData.name.trim(),
           description: formData.description.trim() || null,
-        })
-        .select()
-        .single();
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add area');
+      }
+
+      const { data } = await response.json();
+
+      // Update state immediately without refresh
+      const newArea: Area = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        created_at: data.created_at,
+        store_count: 0,
+      };
+      setAreas((prev) => [...prev, newArea].sort((a, b) => a.name.localeCompare(b.name)));
 
       toast({
         title: 'Area berhasil ditambahkan',
@@ -95,7 +150,6 @@ export function AreasListClient({ initialAreas }: AreasListClientProps) {
 
       setFormData({ name: '', description: '' });
       setIsAddDialogOpen(false);
-      handleRefresh();
     } catch (error: any) {
       console.error('Error adding area:', error);
       toast({
@@ -116,15 +170,30 @@ export function AreasListClient({ initialAreas }: AreasListClientProps) {
     }
 
     try {
-      const { error } = await supabase
-        .from('areas')
-        .update({
+      // Use API route to update area (bypasses RLS)
+      const response = await fetch('/api/admin/areas', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingArea.id,
           name: formData.name.trim(),
           description: formData.description.trim() || null,
-        })
-        .eq('id', editingArea.id);
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update area');
+      }
+
+      // Update state immediately without refresh
+      setAreas((prev) =>
+        prev.map((area) =>
+          area.id === editingArea.id
+            ? { ...area, name: formData.name.trim(), description: formData.description.trim() || null }
+            : area
+        )
+      );
 
       toast({
         title: 'Area berhasil diupdate',
@@ -134,7 +203,6 @@ export function AreasListClient({ initialAreas }: AreasListClientProps) {
       setEditingArea(null);
       setFormData({ name: '', description: '' });
       setIsEditDialogOpen(false);
-      handleRefresh();
     } catch (error: any) {
       console.error('Error updating area:', error);
       toast({
@@ -149,30 +217,30 @@ export function AreasListClient({ initialAreas }: AreasListClientProps) {
     if (!deletingArea) return;
 
     try {
-      // Check if area has stores
-      const { data: stores } = await supabase
-        .from('stores')
-        .select('id')
-        .eq('area_id', deletingArea.id)
-        .limit(1);
+      // Use API route to delete area (bypasses RLS)
+      const response = await fetch('/api/admin/areas', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: deletingArea.id }),
+      });
 
-      if (stores && stores.length > 0) {
-        toast({
-          title: 'Tidak dapat menghapus area',
-          description: `Area ini masih digunakan oleh ${stores.length} toko. Hapus atau pindahkan toko terlebih dahulu.`,
-          variant: 'destructive',
-        });
-        setIsDeleteDialogOpen(false);
-        setDeletingArea(null);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.error?.includes('masih digunakan')) {
+          toast({
+            title: 'Tidak dapat menghapus area',
+            description: errorData.error,
+            variant: 'destructive',
+          });
+          setIsDeleteDialogOpen(false);
+          setDeletingArea(null);
+          return;
+        }
+        throw new Error(errorData.error || 'Failed to delete area');
       }
 
-      const { error } = await supabase
-        .from('areas')
-        .delete()
-        .eq('id', deletingArea.id);
-
-      if (error) throw error;
+      // Update state immediately without refresh
+      setAreas((prev) => prev.filter((area) => area.id !== deletingArea.id));
 
       toast({
         title: 'Area berhasil dihapus',
@@ -181,7 +249,6 @@ export function AreasListClient({ initialAreas }: AreasListClientProps) {
 
       setDeletingArea(null);
       setIsDeleteDialogOpen(false);
-      handleRefresh();
     } catch (error: any) {
       console.error('Error deleting area:', error);
       toast({
@@ -283,51 +350,106 @@ export function AreasListClient({ initialAreas }: AreasListClientProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {areas.map((area) => (
-            <Card key={area.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-primary" />
-                      {area.name}
-                    </CardTitle>
-                    {area.description && (
-                      <CardDescription className="mt-2">{area.description}</CardDescription>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Store className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {area.store_count || 0} toko
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditDialog(area)}
+        <>
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead>Nama Area</TableHead>
+                    <TableHead>Deskripsi</TableHead>
+                    <TableHead className="text-center">Jumlah Toko</TableHead>
+                    <TableHead className="text-center w-[150px]">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedAreas.map((area, index) => (
+                    <TableRow key={area.id}>
+                      <TableCell className="font-medium">
+                        {startIndex + index + 1}
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          {area.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {area.description || '-'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Store className="h-4 w-4 text-muted-foreground" />
+                          <span>{area.store_count || 0}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(area)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDeleteDialog(area)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) setCurrentPage(currentPage - 1);
+                    }}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}
+                      isActive={currentPage === page}
                     >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openDeleteDialog(area)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                    }}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </>
       )}
 
       {/* Edit Dialog */}

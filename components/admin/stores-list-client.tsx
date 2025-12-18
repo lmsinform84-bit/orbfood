@@ -1,13 +1,22 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { UpdateStoreStatusButton } from './update-store-status-button';
 import { StoreStatus } from '@/types/database';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface Store {
   id: string;
@@ -22,6 +31,12 @@ interface Store {
     full_name: string | null;
     email: string;
   } | null;
+  area?: {
+    id: string;
+    name: string;
+  } | null;
+  order_count?: number;
+  total_fee?: number;
 }
 
 interface StoresListClientProps {
@@ -31,13 +46,13 @@ interface StoresListClientProps {
 const getStatusBadge = (status: StoreStatus) => {
   switch (status) {
     case 'approved':
-      return <Badge className="bg-green-500">Disetujui</Badge>;
+      return <Badge className="bg-green-500">Aktif</Badge>;
     case 'pending':
-      return <Badge variant="secondary">Menunggu</Badge>;
+      return <Badge variant="secondary">Pending</Badge>;
     case 'suspended':
-      return <Badge variant="destructive">Ditangguhkan</Badge>;
+      return <Badge variant="destructive">Suspended</Badge>;
     case 'rejected':
-      return <Badge variant="destructive">Ditolak</Badge>;
+      return <Badge variant="destructive">Rejected</Badge>;
     default:
       return <Badge>{status}</Badge>;
   }
@@ -52,7 +67,6 @@ export function StoresListClient({ initialStores }: StoresListClientProps) {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // Fetch fresh data
       const response = await fetch('/api/stores/all', {
         cache: 'no-store',
         next: { revalidate: 0 }
@@ -61,7 +75,6 @@ export function StoresListClient({ initialStores }: StoresListClientProps) {
         const data = await response.json();
         setStores(data.stores || []);
       }
-      // Also refresh router
       startTransition(() => {
         router.refresh();
       });
@@ -75,7 +88,6 @@ export function StoresListClient({ initialStores }: StoresListClientProps) {
     }
   };
 
-  // Update stores when initialStores changes
   useEffect(() => {
     setStores(initialStores);
   }, [initialStores]);
@@ -113,47 +125,49 @@ export function StoresListClient({ initialStores }: StoresListClientProps) {
           Refresh
         </Button>
       </div>
-      <div className="grid gap-4">
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nama</TableHead>
+                <TableHead>Wilayah</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-center">Order</TableHead>
+                <TableHead className="text-right">Fee</TableHead>
+                <TableHead className="text-center w-[150px]">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
         {stores.map((store) => (
-          <Card key={store.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="mb-2">{store.name}</CardTitle>
-                  <CardDescription>{store.description || 'Toko makanan terpercaya'}</CardDescription>
-                </div>
-                {getStatusBadge(store.status)}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 mb-4">
-                <div className="text-sm">
-                  <strong>Alamat:</strong> {store.address}
-                </div>
-                {store.phone && (
-                  <div className="text-sm">
-                    <strong>Telepon:</strong> {store.phone}
-                  </div>
-                )}
-                {store.email && (
-                  <div className="text-sm">
-                    <strong>Email:</strong> {store.email}
-                  </div>
-                )}
-                <div className="text-sm">
-                  <strong>Pemilik:</strong> {store.user?.full_name || 'N/A'} (
-                  {store.user?.email || 'N/A'})
-                </div>
-              </div>
+                <TableRow key={store.id}>
+                  <TableCell className="font-semibold">{store.name}</TableCell>
+                  <TableCell>{store.area?.name || '-'}</TableCell>
+                  <TableCell>{getStatusBadge(store.status)}</TableCell>
+                  <TableCell className="text-center">{store.order_count || 0}</TableCell>
+                  <TableCell className="text-right">
+                    {store.total_fee ? `Rp ${store.total_fee.toLocaleString('id-ID')}` : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-2">
+                      <Link href={`/admin/stores/${store.id}`}>
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
               <UpdateStoreStatusButton 
                 key={`${store.id}-${store.status}`} 
                 storeId={store.id} 
                 currentStatus={store.status} 
               />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
             </CardContent>
           </Card>
-        ))}
-      </div>
     </div>
   );
 }

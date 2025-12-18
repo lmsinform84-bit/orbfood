@@ -1,13 +1,32 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useTransition, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { UpdateUserRoleButton } from './update-user-role-button';
 import { UserRole } from '@/types/database';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale/id';
 
 interface User {
   id: string;
@@ -41,11 +60,13 @@ export function UsersListClient({ initialUsers }: UsersListClientProps) {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [refreshing, setRefreshing] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // Fetch fresh data
       const response = await fetch('/api/users/all', {
         cache: 'no-store',
         next: { revalidate: 0 }
@@ -54,7 +75,6 @@ export function UsersListClient({ initialUsers }: UsersListClientProps) {
         const data = await response.json();
         setUsers(data.users || []);
       }
-      // Also refresh router
       startTransition(() => {
         router.refresh();
       });
@@ -68,10 +88,45 @@ export function UsersListClient({ initialUsers }: UsersListClientProps) {
     }
   };
 
-  // Update users when initialUsers changes
   useEffect(() => {
     setUsers(initialUsers);
+    setCurrentPage(1); // Reset to first page when data changes
   }, [initialUsers]);
+
+  // Filter users based on search query
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return users;
+    }
+
+    const query = searchQuery.toLowerCase();
+    return users.filter(user => {
+      const fullName = (user.full_name || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const phone = (user.phone || '').toLowerCase();
+      const address = (user.address || '').toLowerCase();
+      const role = (user.role || '').toLowerCase();
+
+      return (
+        fullName.includes(query) ||
+        email.includes(query) ||
+        phone.includes(query) ||
+        address.includes(query) ||
+        role.includes(query)
+      );
+    });
+  }, [users, searchQuery]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Reset to first page when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   if (users.length === 0) {
     return (
@@ -95,7 +150,17 @@ export function UsersListClient({ initialUsers }: UsersListClientProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Cari pengguna (nama, email, telepon, alamat, role)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -106,44 +171,109 @@ export function UsersListClient({ initialUsers }: UsersListClientProps) {
           Refresh
         </Button>
       </div>
-      <div className="grid gap-4">
-        {users.map((user) => (
-          <Card key={user.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="mb-2">{user.full_name || 'N/A'}</CardTitle>
-                  <CardDescription>{user.email}</CardDescription>
-                </div>
-                {getRoleBadge(user.role)}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm mb-4">
-                {user.phone && (
-                  <div>
-                    <strong>Telepon:</strong> {user.phone}
-                  </div>
-                )}
-                {user.address && (
-                  <div>
-                    <strong>Alamat:</strong> {user.address}
-                  </div>
-                )}
-                <div>
-                  <strong>Terdaftar:</strong>{' '}
-                  {new Date(user.created_at).toLocaleDateString('id-ID')}
-                </div>
-              </div>
+
+      {filteredUsers.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">
+              Tidak ada pengguna yang cocok dengan pencarian "{searchQuery}"
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">No</TableHead>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Telepon</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Terdaftar</TableHead>
+                    <TableHead className="text-center w-[150px]">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedUsers.map((user, index) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">
+                        {startIndex + index + 1}
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {user.full_name || '-'}
+                      </TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.phone || '-'}</TableCell>
+                      <TableCell>{getRoleBadge(user.role)}</TableCell>
+                      <TableCell>
+                        {format(new Date(user.created_at), 'dd MMM yyyy', { locale: id })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center">
               <UpdateUserRoleButton 
                 key={`${user.id}-${user.role}`} 
                 userId={user.id} 
                 currentRole={user.role} 
               />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
-        ))}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredUsers.length)} dari {filteredUsers.length} pengguna
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage > 1) setCurrentPage(currentPage - 1);
+                      }}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}
+                        isActive={currentPage === page}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                      }}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
       </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

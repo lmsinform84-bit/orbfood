@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { FileText, Download, TrendingUp, DollarSign, AlertCircle, Receipt } from 'lucide-react';
 import { InvoiceDetail } from './invoice-detail';
 import { PayInvoiceButton } from './pay-invoice-button';
+import { StoreInvoiceList } from './store-invoice-list';
 
 interface OrderItem {
   id: string;
@@ -74,10 +75,46 @@ export function InvoiceSection({
         break;
     }
 
-    return orders.filter((order) => {
+    const filtered = orders.filter((order) => {
+      if (!order || !order.created_at) {
+        console.warn('Order missing created_at:', order);
+        return false;
+      }
+      
+      // All orders from server should already be 'selesai', but double check
+      if (order.status && order.status !== 'selesai') {
+        return false;
+      }
+      
       const orderDate = new Date(order.created_at);
-      return orderDate >= startDate && orderDate <= endDate;
+      const isValid = orderDate >= startDate && orderDate <= endDate;
+      
+      if (!isValid && process.env.NODE_ENV === 'development') {
+        console.log('Order filtered out:', {
+          orderId: order.id,
+          orderDate: orderDate.toISOString(),
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          status: order.status,
+        });
+      }
+      
+      return isValid;
     });
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Filtered orders:', {
+        period,
+        totalOrders: orders.length,
+        filteredCount: filtered.length,
+        dateRange: {
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+        },
+      });
+    }
+
+    return filtered;
   }, [orders, period]);
 
   const summary = useMemo(() => {
@@ -165,92 +202,13 @@ export function InvoiceSection({
           </Card>
         </div>
 
-        {/* Invoice List */}
-        {filteredOrders.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Belum ada invoice untuk periode ini.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Daftar Invoice</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => {
-                  alert('Fitur download PDF akan segera tersedia');
-                }}
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Download PDF</span>
-              </Button>
-            </div>
-
-            {filteredOrders.map((order) => {
-              const fee = order.final_total * ORB_FEE_PERCENTAGE;
-              const orderDate = new Date(order.created_at);
-
-              return (
-                <Card key={order.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg mb-1">
-                          #{order.id.substring(0, 8).toUpperCase()}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                          {format(orderDate, 'dd MMMM yyyy', { locale: id })}
-                        </p>
-                      </div>
-                      <Badge variant="destructive">Belum</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Total Pesanan</span>
-                        <span className="text-lg font-semibold">
-                          Rp {order.final_total.toLocaleString('id-ID')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center pt-2 border-t">
-                        <span className="text-sm text-muted-foreground">Fee ORB (5%)</span>
-                        <span className="text-lg font-bold text-primary">
-                          Rp {fee.toLocaleString('id-ID')}
-                        </span>
-                      </div>
-                      <div className="space-y-2 mt-4">
-                        <PayInvoiceButton
-                          orderId={order.id}
-                          feeAmount={fee}
-                          orbQrisUrl={orbQrisUrl}
-                          onPaymentSuccess={() => {
-                            window.location.reload();
-                          }}
-                        />
-                        <Sheet>
-                          <SheetTrigger asChild>
-                            <Button variant="outline" className="w-full">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Lihat Detail
-                            </Button>
-                          </SheetTrigger>
-                          <SheetContent className="overflow-y-auto">
-                            <InvoiceDetail order={order} fee={fee} />
-                          </SheetContent>
-                        </Sheet>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+        {/* Invoice List - Using StoreInvoiceList component */}
+        <StoreInvoiceList
+          orders={filteredOrders}
+          storeId={storeId}
+          storeName={storeName}
+          orbQrisUrl={orbQrisUrl}
+        />
       </CardContent>
     </Card>
   );

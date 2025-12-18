@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { createAdminClient } from '@/lib/supabase/admin-server';
 import { AreasListClient } from '@/components/admin/areas-list-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +14,11 @@ async function getAreas() {
     .order('name', { ascending: true });
 
   if (error) {
+    // If table doesn't exist, return empty array (migration not run yet)
+    if (error.code === 'PGRST205') {
+      console.warn('⚠️ Areas table not found. Please run migration 20251215000012_add_area_to_stores.sql');
+      return [];
+    }
     console.error('Error fetching areas:', error);
     return [];
   }
@@ -25,6 +33,11 @@ async function getStoreCountsByArea() {
     .select('area_id');
 
   if (error) {
+    // If area_id column doesn't exist, return empty object (migration not run yet)
+    if (error.code === '42703' && error.message?.includes('area_id')) {
+      console.warn('⚠️ area_id column not found. Please run migration 20251215000012_add_area_to_stores.sql');
+      return {};
+    }
     console.error('Error fetching stores for count:', error);
     return {};
   }

@@ -6,14 +6,20 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Package, ShoppingBag, TrendingUp, Store, AlertCircle, Clock } from 'lucide-react';
 import { StoreStatusToggle } from '@/components/toko/store-status-toggle';
+import { InvoiceNotification } from '@/components/toko/invoice-notification';
 
 async function getStore(userId: string) {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('stores')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching store:', error);
+    return null;
+  }
 
   return data;
 }
@@ -121,6 +127,9 @@ export default async function TokoDashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Invoice Notification */}
+      {store.status === 'approved' && <InvoiceNotification storeId={store.id} />}
 
       {stats && (
         <>

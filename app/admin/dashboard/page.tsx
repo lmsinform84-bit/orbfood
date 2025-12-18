@@ -1,8 +1,12 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { createAdminClient } from '@/lib/supabase/admin-server';
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Store, ShoppingBag, TrendingUp } from 'lucide-react';
 import { PendingStoresList } from '@/components/admin/pending-stores-list';
+import { ORBQRISUpload } from '@/components/admin/orb-qris-upload';
 
 async function getStats() {
   const supabase = createAdminClient();
@@ -121,7 +125,7 @@ export default async function AdminDashboardPage() {
         </Card>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-6 mb-6">
         <Card>
           <CardHeader>
             <CardTitle>Toko Menunggu Persetujuan</CardTitle>
@@ -163,6 +167,18 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload QRIS ORBfood</CardTitle>
+          <CardDescription>
+            Kelola QRIS ORBfood untuk semua toko
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ORBQRISUpload />
+        </CardContent>
+      </Card>
     </div>
   );
 }

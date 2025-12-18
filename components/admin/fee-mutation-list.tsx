@@ -132,6 +132,12 @@ export function FeeMutationList() {
     );
   }
 
+  // Calculate totals
+  const totalFee = fees.reduce((sum, fee) => sum + fee.total_fee, 0);
+  const totalOrders = fees.reduce((sum, fee) => sum + fee.order_count, 0);
+  const paidCount = fees.filter((f) => f.status === 'paid').length;
+  const pendingCount = fees.filter((f) => f.status === 'pending').length;
+
   return (
     <div className="space-y-4">
       <Tabs value={period} onValueChange={(v) => setPeriod(v as any)}>
@@ -142,6 +148,53 @@ export function FeeMutationList() {
         </TabsList>
       </Tabs>
 
+      {/* Summary Cards */}
+      {fees.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">Total Toko</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{fees.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">Total Pesanan</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalOrders}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">Total Fee</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">
+                Rp {totalFee.toLocaleString('id-ID')}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                <div className="text-sm">
+                  <span className="text-green-600 font-semibold">{paidCount}</span> Diterima
+                </div>
+                <div className="text-sm">
+                  <span className="text-orange-600 font-semibold">{pendingCount}</span> Pending
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {fees.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -149,48 +202,48 @@ export function FeeMutationList() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {fees.map((fee) => (
-            <Card key={fee.store_id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{fee.store_name}</CardTitle>
-                    <CardDescription>
-                      {fee.order_count} pesanan • {format(new Date(), 'dd MMMM yyyy', { locale: id })}
-                    </CardDescription>
-                  </div>
-                  <Badge variant={fee.status === 'paid' ? 'default' : 'destructive'}>
-                    {fee.status === 'paid' ? 'Diterima' : 'Belum'}
+            <Card key={fee.store_id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-base truncate">{fee.store_name}</h3>
+                      <Badge 
+                        variant={fee.status === 'paid' ? 'default' : 'destructive'}
+                        className="text-xs shrink-0"
+                      >
+                        {fee.status === 'paid' ? 'Diterima' : 'Pending'}
                   </Badge>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Fee ORB (5%)</span>
-                    <span className="text-xl font-bold text-primary">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                      <span>{fee.order_count} pesanan</span>
+                      <span>•</span>
+                      <span className="font-semibold text-primary">
                       Rp {fee.total_fee.toLocaleString('id-ID')}
                     </span>
+                    </div>
                   </div>
-                  <div className="flex gap-2 pt-2 border-t">
+                  <div className="flex gap-2 shrink-0">
+                    {fee.status === 'pending' ? (
                     <Button
-                      variant={fee.status === 'paid' ? 'outline' : 'default'}
+                        variant="default"
                       size="sm"
-                      className="flex-1"
                       onClick={() => handleUpdateStatus(fee.store_id, 'paid')}
-                      disabled={fee.status === 'paid'}
+                        className="h-9"
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Tandai Diterima
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        Terima
                     </Button>
-                    {fee.status === 'paid' && (
+                    ) : (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleUpdateStatus(fee.store_id, 'pending')}
+                        className="h-9"
                       >
-                        <XCircle className="h-4 w-4 mr-2" />
+                        <XCircle className="h-4 w-4 mr-1" />
                         Batalkan
                       </Button>
                     )}

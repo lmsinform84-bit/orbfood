@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/lib/auth';
-import { UnpaidInvoicesList } from '@/components/toko/unpaid-invoices-list';
+import { PaidInvoicesHistory } from '@/components/toko/paid-invoices-history';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
 
@@ -20,7 +20,7 @@ async function getStore(userId: string) {
   return data;
 }
 
-export default async function InvoicePage() {
+export default async function InvoiceHistoryPage() {
   const user = await requireAuth();
   const store = await getStore(user.id);
 
@@ -46,18 +46,14 @@ export default async function InvoicePage() {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <FileText className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl md:text-3xl font-bold">Invoice Toko</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">History Pelunasan</h1>
         </div>
         <p className="text-muted-foreground">
-          Tagihan yang perlu dibayar
+          Daftar invoice yang sudah dibayar dan diverifikasi
         </p>
       </div>
 
-      <UnpaidInvoicesList
-        storeId={store.id}
-        storeName={store.name}
-        orbQrisUrl={(store as any).orb_qris_url || null}
-      />
+      <PaidInvoicesHistory storeId={store.id} />
     </div>
   );
 }

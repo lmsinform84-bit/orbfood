@@ -113,29 +113,76 @@ export function PayInvoiceButton({ orderId, feeAmount, orbQrisUrl: initialOrbQri
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Compress image
-      const compressedFile = await compressImage(file, 0.8);
+      // Compress image (max width 1200px for payment proofs)
+      const compressedFile = await compressImage(file, 1200);
 
       // Upload to Supabase Storage
       const fileExt = compressedFile.name.split('.').pop();
       const fileName = `invoice-payments/${orderId}-${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      console.log('Attempting to upload payment proof:', {
+        bucket: 'store-uploads',
+        fileName,
+        fileSize: compressedFile.size,
+        fileType: compressedFile.type,
+      });
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('store-uploads')
         .upload(fileName, compressedFile, {
           cacheControl: '3600',
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error details:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError,
+        });
+        
+        // Provide more helpful error message
+        if (uploadError.message?.includes('Bucket not found')) {
+          throw new Error('Bucket "store-uploads" belum dibuat. Silakan hubungi admin untuk membuat bucket terlebih dahulu.');
+        } else if (uploadError.message?.includes('new row violates row-level security policy')) {
+          throw new Error('Anda tidak memiliki izin untuk upload. Pastikan Anda login sebagai toko dan memiliki akses yang benar.');
+        } else if (uploadError.message?.includes('The resource already exists')) {
+          throw new Error('File dengan nama yang sama sudah ada. Silakan coba lagi.');
+        }
+        
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('store-uploads')
         .getPublicUrl(fileName);
 
-      // TODO: Save payment record to database
-      // For now, just show success
+      // Save payment proof to database
+      try {
+        const response = await fetch('/api/invoices/upload-proof', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: orderId, // API will get or create invoice for this order
+            paymentProofUrl: urlData.publicUrl,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to save payment proof');
+        }
+      } catch (error: any) {
+        console.error('Error saving payment proof to database:', error);
+        // Continue anyway - file is uploaded, just database update failed
+      }
+
       toast({
         title: 'Pembayaran berhasil',
         description: 'Bukti pembayaran telah diupload. Admin akan memverifikasi pembayaran Anda.',
@@ -145,6 +192,7 @@ export function PayInvoiceButton({ orderId, feeAmount, orbQrisUrl: initialOrbQri
       setFile(null);
       setPreview(null);
       
+      // Call success callback to refresh invoice list
       if (onPaymentSuccess) {
         onPaymentSuccess();
       }

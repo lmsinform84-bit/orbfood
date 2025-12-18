@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { Navbar } from '@/components/navbar';
 import { NavigationMenu } from '@/components/navigation-menu';
+import { AdminBottomNavigation } from '@/components/admin/bottom-navigation';
 
 export default async function AdminLayout({
   children,
@@ -37,33 +38,24 @@ export default async function AdminLayout({
       iconName: 'Users' as const,
     },
     {
-      href: '/admin/orders',
-      label: 'Pesanan',
-      iconName: 'ShoppingBag' as const,
-    },
-    {
       href: '/admin/areas',
       label: 'Wilayah',
       iconName: 'MapPin' as const,
-    },
-    {
-      href: '/admin/payment',
-      label: 'Pembayaran',
-      iconName: 'CreditCard' as const,
     },
   ];
 
   return (
     <>
       <Navbar userRole={user.role} userName={user.full_name || undefined} />
-      <div className="border-b bg-muted/40">
+      <div className="hidden md:block border-b bg-muted/40">
         <div className="container mx-auto px-4">
           <div className="flex h-12 items-center">
             <NavigationMenu items={navItems} />
           </div>
         </div>
       </div>
-      <main className="container mx-auto px-4 py-6">{children}</main>
+      <main className="container mx-auto px-4 py-6 pb-20 md:pb-6">{children}</main>
+      <AdminBottomNavigation />
     </>
   );
 }

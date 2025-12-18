@@ -5,11 +5,16 @@ import { OrdersList } from '@/components/toko/orders-list';
 
 async function getStore(userId: string) {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('stores')
     .select('id')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching store:', error);
+    return null;
+  }
 
   return data;
 }
