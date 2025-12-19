@@ -1,11 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils/image';
-import { AddToCartButton } from '@/components/user/add-to-cart-button';
-import { ProductHighlight } from '@/components/user/product-highlight';
-import { MapPin, Phone, Mail, Clock, CreditCard } from 'lucide-react';
+import { StoreMenuDisplay } from '@/components/user/store-menu-display';
+import { MapPin, Phone, Mail, CreditCard } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 async function getStore(id: string) {
@@ -164,69 +163,10 @@ export default async function StorePage({
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold mb-4">Menu</h2>
-        
-        {/* Show selected product highlight at the top */}
-        {selectedProduct && (
-          <ProductHighlight product={selectedProduct} />
-        )}
-
-        {products.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">Belum ada menu yang tersedia.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product) => {
-              const isSelected = selectedProduct?.id === product.id;
-              return (
-                <Card 
-                  key={product.id}
-                  className={isSelected ? 'border-2 border-primary shadow-md' : ''}
-                >
-                  <div className="relative h-48 w-full">
-                    {product.image_url ? (
-                      <Image
-                        src={getImageUrl(product.image_url, 'medium') || '/placeholder-food.jpg'}
-                        alt={product.name}
-                        fill
-                        className="object-cover rounded-t-lg"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 flex items-center justify-center rounded-t-lg">
-                        <span className="text-4xl">🍽️</span>
-                      </div>
-                    )}
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="line-clamp-1">{product.name}</CardTitle>
-                    <CardDescription className="line-clamp-2">
-                      {product.description || 'Menu lezat dari toko kami'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-2xl font-bold text-primary">
-                        Rp {product.price.toLocaleString('id-ID')}
-                      </span>
-                      {product.stock > 0 ? (
-                        <span className="text-sm text-muted-foreground">Stok: {product.stock}</span>
-                      ) : (
-                        <span className="text-sm text-destructive">Habis</span>
-                      )}
-                    </div>
-                    <AddToCartButton
-                      product={product}
-                      disabled={product.stock === 0}
-                    />
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+        <StoreMenuDisplay 
+          products={products} 
+          selectedProductId={selectedProduct?.id || null}
+        />
       </div>
     </div>
   );

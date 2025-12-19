@@ -15,6 +15,7 @@ import { Store, StoreSettings } from '@/types/database';
 import { getImageUrl } from '@/lib/utils/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QRISUpload } from './qris-upload';
+import { AreaSelect } from '@/components/ui/area-select';
 
 interface StoreSettingsFormProps {
   store: Store | null;
@@ -34,6 +35,7 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
     address: store?.address || '',
     phone: store?.phone || '',
     email: store?.email || '',
+    area_id: store?.area_id || '',
   });
 
   const [settingsForm, setSettingsForm] = useState({
@@ -149,6 +151,7 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
             address: storeForm.address,
             phone: storeForm.phone || null,
             email: storeForm.email || null,
+            area_id: storeForm.area_id || null,
             logo_url: logoUrl,
             banner_url: bannerUrl,
           })
@@ -166,6 +169,7 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
             address: storeForm.address,
             phone: storeForm.phone || null,
             email: storeForm.email || null,
+            area_id: storeForm.area_id || null,
             logo_url: logoUrl,
             banner_url: bannerUrl,
             status: 'pending',
@@ -437,6 +441,14 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
                     onChange={(e) => setStoreForm({ ...storeForm, email: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <AreaSelect
+                  value={storeForm.area_id}
+                  onValueChange={(value) => setStoreForm({ ...storeForm, area_id: value })}
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

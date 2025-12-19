@@ -28,6 +28,7 @@ interface ProductWithStore {
     id: string;
     name: string;
     address: string;
+    area_id: string | null;
     area: {
       id: string;
       name: string;
@@ -224,15 +225,15 @@ export function HomePageNew({ selectedAreaId, selectedAreaName }: HomePageNewPro
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <ProductCardSkeleton key={i} />
             ))}
           </div>
         ) : filteredProducts.length === 0 ? (
           <EmptyState searchQuery={searchQuery} />
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
             {filteredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -244,14 +245,16 @@ export function HomePageNew({ selectedAreaId, selectedAreaName }: HomePageNewPro
 }
 
 function ProductCard({ product }: { product: ProductWithStore }) {
+  const areaName = product.store.area?.name || '';
+
   return (
     <Link 
       href={`/user/stores/${product.store.id}?productId=${product.id}`}
-      className="block"
+      className="block flex-shrink-0"
     >
-      <Card className="rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 bg-white overflow-hidden h-full flex flex-col">
-        {/* Product Image */}
-        <div className="relative h-32 md:h-40 w-full bg-gradient-to-br from-gray-100 to-gray-200">
+      <Card className="rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 bg-white overflow-hidden w-80 h-40 flex flex-row">
+        {/* Product Image - Landscape */}
+        <div className="relative w-40 h-full bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
           {product.image_url ? (
             <Image
               src={getImageUrl(product.image_url, 'medium') || '/placeholder-food.jpg'}
@@ -271,29 +274,35 @@ function ProductCard({ product }: { product: ProductWithStore }) {
           )}
         </div>
 
-        <CardContent className="p-3 md:p-4 flex-1 flex flex-col">
-          {/* Store Name */}
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Store className="h-3 w-3 text-gray-400 flex-shrink-0" />
-            <span className="text-xs text-gray-500 truncate">{product.store.name}</span>
-          </div>
-
+        <CardContent className="p-4 flex-1 flex flex-col justify-between min-w-0">
           {/* Product Name */}
-          <h3 className="font-semibold text-sm md:text-base text-gray-900 mb-2 line-clamp-2 flex-1">
+          <h3 className="font-semibold text-base text-gray-900 mb-1 line-clamp-2">
             {product.name}
           </h3>
 
           {/* Price */}
-          <div className="mt-auto">
-            <div className="flex items-center justify-between">
-              <span className="text-base md:text-lg font-bold text-[#1E3A8A]">
-                Rp {product.price.toLocaleString('id-ID')}
-              </span>
-              {product.stock === 0 && (
-                <span className="text-xs text-red-500 font-medium">Habis</span>
-              )}
-            </div>
+          <div className="mb-2">
+            <span className="text-lg font-bold text-[#1E3A8A]">
+              Rp {product.price.toLocaleString('id-ID')}
+            </span>
+            {product.stock === 0 && (
+              <span className="text-xs text-red-500 font-medium ml-2">Habis</span>
+            )}
           </div>
+
+          {/* Store Name */}
+          <div className="flex items-center gap-1.5 mb-1">
+            <Store className="h-3 w-3 text-gray-400 flex-shrink-0" />
+            <span className="text-xs text-gray-500 truncate">{product.store.name}</span>
+          </div>
+
+          {/* Area */}
+          {areaName && (
+            <div className="flex items-center gap-1.5">
+              <MapPin className="h-3 w-3 text-gray-400 flex-shrink-0" />
+              <span className="text-xs text-gray-500 truncate">{areaName}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>
@@ -302,13 +311,13 @@ function ProductCard({ product }: { product: ProductWithStore }) {
 
 function ProductCardSkeleton() {
   return (
-    <Card className="rounded-2xl border border-gray-200 bg-white overflow-hidden h-full flex flex-col">
-      <Skeleton className="h-32 md:h-40 w-full" />
-      <CardContent className="p-3 md:p-4 flex-1 flex flex-col">
-        <Skeleton className="h-3 w-20 mb-2" />
+    <Card className="rounded-2xl border border-gray-200 bg-white overflow-hidden w-80 h-40 flex flex-row flex-shrink-0">
+      <Skeleton className="w-40 h-full" />
+      <CardContent className="p-4 flex-1 flex flex-col justify-between">
         <Skeleton className="h-4 w-full mb-2" />
-        <Skeleton className="h-4 w-3/4 mb-3 flex-1" />
-        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-5 w-24 mb-2" />
+        <Skeleton className="h-3 w-20 mb-1" />
+        <Skeleton className="h-3 w-32" />
       </CardContent>
     </Card>
   );

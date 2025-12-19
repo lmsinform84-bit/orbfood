@@ -44,7 +44,6 @@ export async function GET(request: Request) {
           id,
           name,
           address,
-          region_id,
           area_id
         )
       `)
@@ -58,72 +57,37 @@ export async function GET(request: Request) {
       return NextResponse.json([]);
     }
 
-    // Fetch regions if any store has region_id
-    const regionIds = [...new Set(productsData
-      .map((p: any) => p.store?.region_id)
+    // Fetch areas if any store has area_id
+    const areaIds = [...new Set(productsData
+      .map((p: any) => p.store?.area_id)
       .filter(Boolean))];
 
-    let regionsMap: Record<string, any> = {};
-    let parentRegionsMap: Record<string, any> = {};
+    let areasMap: Record<string, { id: string; name: string }> = {};
 
-    if (regionIds.length > 0) {
-      const { data: regionsData } = await supabase
-        .from('regions')
-        .select('id, name, type, parent_id')
-        .in('id', regionIds);
+    if (areaIds.length > 0) {
+      const { data: areasData } = await supabase
+        .from('areas')
+        .select('id, name')
+        .in('id', areaIds);
 
-      if (regionsData) {
-        regionsMap = regionsData.reduce((acc, region) => {
-          acc[region.id] = region;
+      if (areasData) {
+        areasMap = areasData.reduce((acc, area) => {
+          acc[area.id] = area;
           return acc;
-        }, {} as Record<string, any>);
-
-        const parentIds = [...new Set(regionsData
-          .map((r: any) => r.parent_id)
-          .filter(Boolean))];
-
-        if (parentIds.length > 0) {
-          const { data: parentData } = await supabase
-            .from('regions')
-            .select('id, name')
-            .in('id', parentIds);
-
-          if (parentData) {
-            parentRegionsMap = parentData.reduce((acc, parent) => {
-              acc[parent.id] = parent;
-              return acc;
-            }, {} as Record<string, any>);
-          }
-        }
+        }, {} as Record<string, { id: string; name: string }>);
       }
     }
 
-    // Map products with region data
-    const productsWithStore = productsData.map((product: any) => {
-      const region = product.store?.region_id && regionsMap[product.store.region_id]
-        ? regionsMap[product.store.region_id]
-        : null;
-
-      const parentRegion = region?.parent_id && parentRegionsMap[region.parent_id]
-        ? parentRegionsMap[region.parent_id]
-        : null;
-
-      return {
-        ...product,
-        store: {
-          ...product.store,
-          region: region ? {
-            id: region.id,
-            name: region.name,
-            type: region.type,
-            parent: parentRegion ? {
-              id: parentRegion.id,
-              name: parentRegion.name,
-            } : null,
-          } : null,
-        },
-      };
-    });
+    // Map products with area data
+    const productsWithStore = productsData.map((product: any) => ({
+      ...product,
+      store: {
+        ...product.store,
+        area: product.store?.area_id && areasMap[product.store.area_id]
+          ? areasMap[product.store.area_id]
+          : null,
+      },
+    }));
 
     return NextResponse.json(productsWithStore, {
       headers: {

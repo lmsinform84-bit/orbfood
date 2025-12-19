@@ -44,12 +44,18 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { name, description, address, phone, email } = body;
+    const { name, description, address, phone, email, area_id } = body;
 
     // Validate input
     if (!name || !address) {
       return NextResponse.json(
         { error: 'Nama toko dan alamat harus diisi' },
+        { status: 400 }
+      );
+    }
+    if (!area_id) {
+      return NextResponse.json(
+        { error: 'Wilayah operasional toko harus dipilih' },
         { status: 400 }
       );
     }
@@ -69,6 +75,7 @@ export async function POST(request: NextRequest) {
       address: address.trim(),
       phone: phone?.trim() || userProfile?.phone || null,
       email: email?.trim() || user.email || null,
+      area_id: area_id || null,
       status: 'pending', // Status awal: pending, perlu approval admin
       is_open: false,
     };

@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { Store, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { AreaSelect } from '@/components/ui/area-select';
 
 export default function OpenStorePage() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function OpenStorePage() {
     address: '',
     phone: '',
     email: '',
+    area_id: '',
   });
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -75,6 +77,9 @@ export default function OpenStorePage() {
       if (!formData.name || !formData.address) {
         throw new Error('Nama toko dan alamat harus diisi');
       }
+      if (!formData.area_id) {
+        throw new Error('Wilayah operasional toko harus dipilih');
+      }
 
       // Create store via API
       const response = await fetch('/api/stores/create', {
@@ -88,6 +93,7 @@ export default function OpenStorePage() {
           address: formData.address,
           phone: formData.phone || null,
           email: formData.email || null,
+          area_id: formData.area_id || null,
         }),
       });
 
@@ -245,6 +251,14 @@ export default function OpenStorePage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <AreaSelect
+                  value={formData.area_id}
+                  onValueChange={(value) => setFormData({ ...formData, area_id: value })}
+                  required
+                />
               </div>
 
               <div className="p-4 bg-muted rounded-lg">

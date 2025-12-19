@@ -1,15 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { User, ChevronDown, ShoppingCart } from 'lucide-react';
+import { User, ShoppingCart } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import {
   DropdownMenu,
@@ -17,12 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-
-interface Area {
-  id: string;
-  name: string;
-}
+import { AreaCombobox } from './area-combobox';
 
 interface UserHeaderProps {
   selectedAreaId?: string | null;
@@ -31,48 +20,6 @@ interface UserHeaderProps {
 
 export function UserHeader({ selectedAreaId, onAreaChange }: UserHeaderProps) {
   const router = useRouter();
-  const [areas, setAreas] = useState<Area[]>([]);
-  const [selectedArea, setSelectedArea] = useState<Area | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchAreas = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('areas')
-          .select('id, name')
-          .order('name', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching areas:', error);
-          return;
-        }
-
-        setAreas(data || []);
-
-        // If area is selected, find it
-        if (selectedAreaId) {
-          const area = data?.find((a) => a.id === selectedAreaId);
-          if (area) {
-            setSelectedArea(area);
-          }
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAreas();
-  }, [selectedAreaId]);
-
-  const handleAreaSelect = (area: Area | null) => {
-    setSelectedArea(area);
-    if (onAreaChange) {
-      onAreaChange(area?.id || null);
-    }
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -92,52 +39,13 @@ export function UserHeader({ selectedAreaId, onAreaChange }: UserHeaderProps) {
 
           {/* Area Selector */}
           <div className="flex-1 flex justify-center min-w-0">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "rounded-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm",
-                    "h-8 sm:h-9 px-2 sm:px-4 text-xs sm:text-sm font-medium",
-                    "max-w-full"
-                  )}
-                >
-                  <span className="mr-1 sm:mr-2 truncate max-w-[120px] sm:max-w-none">
-                    {selectedArea ? selectedArea.name : 'Pilih Wilayah'}
-                  </span>
-                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-2" align="center">
-                <div className="space-y-1">
-                  <button
-                    onClick={() => handleAreaSelect(null)}
-                    className={cn(
-                      "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                      !selectedArea
-                        ? "bg-[#312E81] text-white"
-                        : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                    )}
-                  >
-                    Semua Wilayah
-                  </button>
-                  {areas.map((area) => (
-                    <button
-                      key={area.id}
-                      onClick={() => handleAreaSelect(area)}
-                      className={cn(
-                        "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                        selectedArea?.id === area.id
-                          ? "bg-[#312E81] text-white"
-                          : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                      )}
-                    >
-                      {area.name}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <AreaCombobox
+              value={selectedAreaId || null}
+              onValueChange={onAreaChange || (() => {})}
+              placeholder="Pilih Wilayah"
+              showAllOption={true}
+              allOptionLabel="Semua Wilayah"
+            />
           </div>
 
           {/* Right side actions */}
