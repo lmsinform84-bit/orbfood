@@ -1,5 +1,5 @@
 export type UserRole = 'user' | 'toko' | 'admin';
-export type OrderStatus = 'pending' | 'diproses' | 'selesai' | 'dibatalkan';
+export type OrderStatus = 'pending' | 'diproses' | 'diantar' | 'selesai' | 'dibatalkan';
 export type StoreStatus = 'pending' | 'approved' | 'suspended' | 'rejected';
 
 export interface User {

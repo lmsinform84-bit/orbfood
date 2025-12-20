@@ -74,11 +74,6 @@ export function StoreMenuDisplay({ products, selectedProductId }: StoreMenuDispl
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
               Menu Unggulan
             </h2>
-            {selectedProductId && (
-              <Badge variant="default" className="text-sm md:text-base px-4 py-1.5 font-semibold shadow-md animate-pulse">
-                ⭐ Produk yang Anda pilih
-              </Badge>
-            )}
           </div>
           <div className="flex gap-5 md:gap-6 lg:gap-8 overflow-x-auto pb-6 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory">
             {featuredProducts.map((product, index) => {
@@ -104,12 +99,6 @@ export function StoreMenuDisplay({ products, selectedProductId }: StoreMenuDispl
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <UtensilsCrossed className="h-20 w-20 text-gray-400" />
-                        </div>
-                      )}
-                      {isSelected && (
-                        <div className="absolute top-4 left-4 bg-gradient-to-r from-primary to-primary/80 text-white text-sm md:text-base px-4 py-2 rounded-full font-bold shadow-xl flex items-center gap-2 animate-pulse z-10">
-                          <span>⭐</span>
-                          <span>Dipilih</span>
                         </div>
                       )}
                       {product.stock <= 5 && product.stock > 0 && (

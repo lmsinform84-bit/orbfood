@@ -53,6 +53,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
       return 'default';
     case 'diproses':
       return 'secondary';
+    case 'diantar':
+      return 'secondary';
     case 'selesai':
       return 'default';
     case 'dibatalkan':
@@ -68,6 +70,8 @@ const getStatusLabel = (status: OrderStatus) => {
       return 'Menunggu';
     case 'diproses':
       return 'Diproses';
+    case 'diantar':
+      return 'Diantar';
     case 'selesai':
       return 'Selesai';
     case 'dibatalkan':

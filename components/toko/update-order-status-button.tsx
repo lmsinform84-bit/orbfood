@@ -14,7 +14,8 @@ interface UpdateOrderStatusButtonProps {
 
 const statusFlow: Record<OrderStatus, OrderStatus[]> = {
   pending: ['diproses', 'dibatalkan'],
-  diproses: ['selesai', 'dibatalkan'],
+  diproses: ['diantar', 'dibatalkan'],
+  diantar: [], // User harus konfirmasi diterima
   selesai: [],
   dibatalkan: [],
 };
@@ -24,7 +25,9 @@ const getStatusLabel = (status: OrderStatus) => {
     case 'pending':
       return 'Terima Pesanan';
     case 'diproses':
-      return 'Tandai Selesai';
+      return 'Pesanan Diantar';
+    case 'diantar':
+      return 'Menunggu Konfirmasi User';
     case 'selesai':
       return 'Selesai';
     case 'dibatalkan':
@@ -82,7 +85,23 @@ export function UpdateOrderStatusButton({
     }
   };
 
-  // Hapus tombol update status - hanya tampilkan status saja
-  return null;
+  if (nextStatuses.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex gap-2">
+      {nextStatuses.map((status) => (
+        <Button
+          key={status}
+          onClick={() => handleUpdateStatus(status)}
+          disabled={loading === status}
+          variant={status === 'dibatalkan' ? 'destructive' : 'default'}
+        >
+          {loading === status ? 'Memproses...' : getStatusLabel(status)}
+        </Button>
+      ))}
+    </div>
+  );
 }
 

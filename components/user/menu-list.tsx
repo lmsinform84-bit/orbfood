@@ -88,7 +88,7 @@ export function MenuList({ products, selectedProductId }: MenuListProps) {
               className={`overflow-hidden hover:shadow-lg transition-all duration-200 border-2 cursor-pointer ${
                 isSelected 
                   ? 'border-primary shadow-md ring-2 ring-primary/20' 
-                  : 'border-border hover:border-primary/50'
+                  : 'border-gray-200 hover:border-primary/50'
               }`}
               onClick={() => handleCardClick(product)}
             >

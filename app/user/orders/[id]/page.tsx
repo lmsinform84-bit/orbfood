@@ -28,6 +28,7 @@ import { getImageUrl } from '@/lib/utils/image';
 import Link from 'next/link';
 import { OrderStatus } from '@/types/database';
 import { PaymentProofUpload } from '@/components/user/payment-proof-upload';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderDetail {
   id: string;
@@ -67,6 +68,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
       return 'default';
     case 'diproses':
       return 'secondary';
+    case 'diantar':
+      return 'secondary';
     case 'selesai':
       return 'default';
     case 'dibatalkan':
@@ -79,13 +82,15 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
 const getStatusLabel = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
-      return 'Menunggu Diproses';
+      return 'Menunggu Konfirmasi Toko';
     case 'diproses':
-      return 'Sedang Diproses';
+      return 'Pesanan Sedang Disiapkan';
+    case 'diantar':
+      return '🚚 Pesanan Sedang Diantar';
     case 'selesai':
-      return 'Selesai';
+      return 'Pesanan Selesai';
     case 'dibatalkan':
-      return 'Dibatalkan';
+      return 'Pesanan Dibatalkan';
     default:
       return status;
   }
@@ -108,8 +113,10 @@ const getPaymentMethodLabel = (method: string | null) => {
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(false);
   const orderId = params.id as string;
 
   useEffect(() => {
@@ -195,7 +202,7 @@ export default function OrderDetailPage() {
   }, [order]);
 
   const isActiveOrder = useMemo(() => {
-    return order?.status === 'pending' || order?.status === 'diproses';
+    return order?.status === 'pending' || order?.status === 'diproses' || order?.status === 'diantar';
   }, [order?.status]);
 
   if (loading) {
@@ -276,10 +283,75 @@ export default function OrderDetailPage() {
         <AlertDescription>
           Status pesanan Anda akan diperbarui secara real-time. 
           {order.status === 'pending' && ' Silakan tunggu konfirmasi dari toko.'}
-          {order.status === 'diproses' && ' Pesanan Anda sedang diproses oleh toko.'}
+          {order.status === 'diproses' && ' Pesanan Anda sedang disiapkan oleh toko.'}
+          {order.status === 'diantar' && ' 🚚 Pesanan sedang diantar. Mohon siapkan pembayaran jika COD.'}
           {order.status === 'selesai' && ' Pesanan Anda telah selesai. Terima kasih!'}
         </AlertDescription>
       </Alert>
+
+      {/* Confirm Received Button for diantar status */}
+      {order.status === 'diantar' && (
+        <Card className="mb-6 border-primary">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <p className="text-lg font-semibold">Pesanan sudah sampai?</p>
+              <p className="text-sm text-muted-foreground">
+                Klik tombol di bawah untuk mengonfirmasi bahwa pesanan telah diterima
+              </p>
+              <Button
+                onClick={handleConfirmReceived}
+                disabled={confirming}
+                size="lg"
+                className="w-full sm:w-auto"
+              >
+                {confirming ? (
+                  <>
+                    <Clock className="mr-2 h-4 w-4 animate-spin" />
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Pesanan Diterima
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Confirm Received Button for diantar status */}
+      {order.status === 'diantar' && (
+        <Card className="mb-6 border-primary">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <p className="text-lg font-semibold">Pesanan sudah sampai?</p>
+              <p className="text-sm text-muted-foreground">
+                Klik tombol di bawah untuk mengonfirmasi bahwa pesanan telah diterima
+              </p>
+              <Button
+                onClick={handleConfirmReceived}
+                disabled={confirming}
+                size="lg"
+                className="w-full sm:w-auto"
+              >
+                {confirming ? (
+                  <>
+                    <Clock className="mr-2 h-4 w-4 animate-spin" />
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Pesanan Diterima
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-3 gap-6">
         {/* Order Details */}
