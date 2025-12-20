@@ -47,16 +47,27 @@ export function UpdateOrderStatusButton({
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
     setLoading(newStatus);
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
+      // Use API endpoint to update status and create invoice if needed
+      const response = await fetch('/api/orders/update-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
+          newStatus,
+        }),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update order status');
+      }
 
       toast({
         title: 'Status diperbarui',
-        description: `Pesanan telah diupdate menjadi ${getStatusLabel(newStatus)}`,
+        description: `Pesanan telah diupdate menjadi ${getStatusLabel(newStatus)}${newStatus === 'selesai' ? '. Invoice telah dibuat otomatis.' : ''}`,
       });
 
       router.refresh();
@@ -71,23 +82,7 @@ export function UpdateOrderStatusButton({
     }
   };
 
-  if (nextStatuses.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="flex gap-2">
-      {nextStatuses.map((status) => (
-        <Button
-          key={status}
-          onClick={() => handleUpdateStatus(status)}
-          disabled={loading === status}
-          variant={status === 'dibatalkan' ? 'destructive' : 'default'}
-        >
-          {loading === status ? 'Memproses...' : getStatusLabel(status)}
-        </Button>
-      ))}
-    </div>
-  );
+  // Hapus tombol update status - hanya tampilkan status saja
+  return null;
 }
 

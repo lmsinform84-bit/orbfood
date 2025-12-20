@@ -53,12 +53,12 @@ export function StoreApprovalAlert({ storeName, storeStatus, userRole }: StoreAp
   };
 
   return (
-    <Alert className="mb-6 border-green-500 bg-green-50 dark:bg-green-950">
-      <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-      <AlertTitle className="text-green-800 dark:text-green-200">
+    <Alert className="mb-6 border-green-500 bg-green-50">
+      <CheckCircle2 className="h-4 w-4 text-green-600" />
+      <AlertTitle className="text-green-800">
         🎉 Toko Anda Telah Disetujui!
       </AlertTitle>
-      <AlertDescription className="text-green-700 dark:text-green-300 mt-2">
+      <AlertDescription className="text-green-700 mt-2">
         <p className="mb-3">
           Selamat! Toko <strong>{storeName}</strong> telah disetujui oleh admin. 
           Anda sekarang memiliki akses sebagai pemilik toko.

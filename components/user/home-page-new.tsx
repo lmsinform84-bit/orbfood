@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getImageUrl } from '@/lib/utils/image';
-import { 
-  UtensilsCrossed, 
-  Store, 
-  MapPin, 
+import {
+  UtensilsCrossed,
+  Store,
+  MapPin,
   Search
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
@@ -225,7 +224,7 @@ export function HomePageNew({ selectedAreaId, selectedAreaName }: HomePageNewPro
         </div>
 
         {loading ? (
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+          <div className="grid grid-cols-1 sm:flex sm:gap-4 sm:overflow-x-auto sm:pb-4 sm:scrollbar-hide">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <ProductCardSkeleton key={i} />
             ))}
@@ -233,7 +232,7 @@ export function HomePageNew({ selectedAreaId, selectedAreaName }: HomePageNewPro
         ) : filteredProducts.length === 0 ? (
           <EmptyState searchQuery={searchQuery} />
         ) : (
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+          <div className="grid grid-cols-1 sm:flex sm:gap-4 sm:overflow-x-auto sm:pb-4 sm:scrollbar-hide">
             {filteredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -246,43 +245,73 @@ export function HomePageNew({ selectedAreaId, selectedAreaName }: HomePageNewPro
 
 function ProductCard({ product }: { product: ProductWithStore }) {
   const areaName = product.store.area?.name || '';
+  const storeUrl = `/user/stores/${product.store.id}?productId=${product.id}`;
+
+  const handleCardClick = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    console.log('Card clicked, navigating to:', storeUrl);
+    // Use window.location.href for reliable navigation
+    window.location.href = storeUrl;
+  };
 
   return (
-    <Link 
-      href={`/user/stores/${product.store.id}?productId=${product.id}`}
-      className="block flex-shrink-0"
+    <div 
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          handleCardClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      className="block sm:flex-shrink-0 w-full sm:w-auto cursor-pointer"
     >
-      <Card className="rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 bg-white overflow-hidden w-80 h-40 flex flex-row">
+      <Card 
+        onClick={handleCardClick}
+        className="rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 bg-white overflow-hidden w-full sm:w-80 h-auto sm:h-40 flex flex-row cursor-pointer"
+      >
         {/* Product Image - Landscape */}
-        <div className="relative w-40 h-full bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
+        <div 
+          className="relative w-32 sm:w-40 h-32 sm:h-full bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0"
+          onClick={handleCardClick}
+        >
           {product.image_url ? (
             <Image
               src={getImageUrl(product.image_url, 'medium') || '/placeholder-food.jpg'}
               alt={product.name}
               fill
-              className="object-cover"
+              sizes="(max-width: 640px) 128px, 160px"
+              className="object-cover pointer-events-none"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <UtensilsCrossed className="h-12 w-12 text-gray-400" />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <UtensilsCrossed className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
             </div>
           )}
           {product.stock <= 5 && product.stock > 0 && (
-            <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+            <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium pointer-events-none">
               Stok terbatas
             </div>
           )}
         </div>
 
-        <CardContent className="p-4 flex-1 flex flex-col justify-between min-w-0">
+        <CardContent 
+          className="p-3 sm:p-4 flex-1 flex flex-col justify-between min-w-0"
+          onClick={handleCardClick}
+        >
           {/* Product Name */}
-          <h3 className="font-semibold text-base text-gray-900 mb-1 line-clamp-2">
+          <h3 className="font-semibold text-sm sm:text-base text-gray-900 mb-1 line-clamp-2 pointer-events-none">
             {product.name}
           </h3>
 
           {/* Price */}
-          <div className="mb-2">
-            <span className="text-lg font-bold text-[#1E3A8A]">
+          <div className="mb-2 pointer-events-none">
+            <span className="text-base sm:text-lg font-bold text-[#1E3A8A]">
               Rp {product.price.toLocaleString('id-ID')}
             </span>
             {product.stock === 0 && (
@@ -291,29 +320,29 @@ function ProductCard({ product }: { product: ProductWithStore }) {
           </div>
 
           {/* Store Name */}
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-1.5 mb-1 pointer-events-none">
             <Store className="h-3 w-3 text-gray-400 flex-shrink-0" />
             <span className="text-xs text-gray-500 truncate">{product.store.name}</span>
           </div>
 
           {/* Area */}
           {areaName && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 pointer-events-none">
               <MapPin className="h-3 w-3 text-gray-400 flex-shrink-0" />
               <span className="text-xs text-gray-500 truncate">{areaName}</span>
             </div>
           )}
         </CardContent>
       </Card>
-    </Link>
+    </div>
   );
 }
 
 function ProductCardSkeleton() {
   return (
-    <Card className="rounded-2xl border border-gray-200 bg-white overflow-hidden w-80 h-40 flex flex-row flex-shrink-0">
-      <Skeleton className="w-40 h-full" />
-      <CardContent className="p-4 flex-1 flex flex-col justify-between">
+    <Card className="rounded-2xl border border-gray-200 bg-white overflow-hidden w-full sm:w-80 h-auto sm:h-40 flex flex-row sm:flex-shrink-0">
+      <Skeleton className="w-32 sm:w-40 h-32 sm:h-full" />
+      <CardContent className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
         <Skeleton className="h-4 w-full mb-2" />
         <Skeleton className="h-5 w-24 mb-2" />
         <Skeleton className="h-3 w-20 mb-1" />

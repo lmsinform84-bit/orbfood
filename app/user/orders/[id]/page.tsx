@@ -20,12 +20,14 @@ import {
   FileText,
   CreditCard,
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  Home
 } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils/image';
 import Link from 'next/link';
 import { OrderStatus } from '@/types/database';
+import { PaymentProofUpload } from '@/components/user/payment-proof-upload';
 
 interface OrderDetail {
   id: string;
@@ -36,6 +38,8 @@ interface OrderDetail {
   delivery_address: string;
   notes: string | null;
   payment_method: string | null;
+  payment_proof_url: string | null;
+  payment_proof_uploaded_at: string | null;
   created_at: string;
   updated_at: string;
   store: {
@@ -223,30 +227,40 @@ export default function OrderDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <Link href={isActiveOrder ? "/user/my-orders" : "/user/orders"}>
-              <Button variant="ghost" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Kembali
+      {/* Navigation Header */}
+      <div className="sticky top-0 z-50 bg-[#1E3A8A] border-b border-[#1E3A8A]/20">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="flex h-14 sm:h-16 items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Link href={isActiveOrder ? "/user/my-orders" : "/user/orders"}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0 text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <h1 className="font-bold text-lg sm:text-xl text-white truncate">
+                Detail Pesanan
+              </h1>
+            </div>
+            <Link href="/user/home">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0 text-white hover:bg-white/20"
+              >
+                <Home className="h-4 w-4" />
               </Button>
             </Link>
-            <div className="flex items-center gap-2">
-              <Link href="/user/home">
-                <Button variant="outline" size="sm" className="gap-2">
-                  Beranda
-                </Button>
-              </Link>
-              <Link href="/user/orders">
-                <Button variant="outline" size="sm" className="gap-2">
-                  Riwayat
-                </Button>
-              </Link>
-            </div>
           </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Detail Pesanan</h1>
             <Badge variant={getStatusBadgeVariant(order.status)} className="text-lg px-4 py-2">
               {getStatusLabel(order.status)}
             </Badge>
@@ -293,7 +307,7 @@ export default function OrderDetailPage() {
                           sizes="80px"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
                           <span className="text-2xl">🍽️</span>
                         </div>
                       )}
@@ -375,14 +389,66 @@ export default function OrderDetailPage() {
                 Metode Pembayaran
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <p className="text-sm">{getPaymentMethodLabel(order.payment_method)}</p>
-              <Alert className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  Pembayaran dilakukan langsung ke toko, bukan melalui aplikasi.
-                </AlertDescription>
-              </Alert>
+              
+              {order.payment_method === 'QRIS' && (
+                <div className="space-y-3">
+                  {order.payment_proof_url ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-green-600">Bukti Pembayaran Telah Diupload</p>
+                      <div className="relative w-full h-64 border rounded-lg overflow-hidden bg-muted">
+                        <Image
+                          src={order.payment_proof_url}
+                          alt="Bukti pembayaran"
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
+                      {order.payment_proof_uploaded_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Diupload: {format(new Date(order.payment_proof_uploaded_at), 'dd MMM yyyy HH:mm', { locale: id })}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          Silakan lakukan pembayaran sesuai nominal yang tertera. Setelah membayar, upload bukti pembayaran di bawah ini.
+                        </AlertDescription>
+                      </Alert>
+                      <PaymentProofUpload
+                        orderId={order.id}
+                        onUploadSuccess={() => {
+                          // Refresh order data
+                          const fetchOrder = async () => {
+                            const { data } = await supabase
+                              .from('orders')
+                              .select('payment_proof_url, payment_proof_uploaded_at')
+                              .eq('id', order.id)
+                              .single();
+                            if (data) {
+                              setOrder(prev => prev ? { ...prev, ...data } : null);
+                            }
+                          };
+                          fetchOrder();
+                        }}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
+              
+              {order.payment_method === 'COD' && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Pembayaran dilakukan langsung ke kasir atau driver saat pesanan diterima.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
 

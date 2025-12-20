@@ -25,6 +25,8 @@ export interface Store {
   email: string | null;
   logo_url: string | null;
   banner_url: string | null;
+  qris_url: string | null;
+  orb_qris_url: string | null;
   status: StoreStatus;
   is_open: boolean;
   created_at: string;
@@ -48,6 +50,8 @@ export interface StoreSettings {
   min_order_amount: number;
   delivery_fee: number;
   estimated_preparation_time: number;
+  payment_methods: string[] | null;
+  cod_max_limit: number | null;
   created_at: string;
   updated_at: string;
 }

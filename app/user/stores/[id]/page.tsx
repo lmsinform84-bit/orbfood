@@ -1,11 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Image from 'next/image';
-import { getImageUrl } from '@/lib/utils/image';
-import { StoreMenuDisplay } from '@/components/user/store-menu-display';
-import { MapPin, Phone, Mail, CreditCard } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { StorePageClient } from '@/components/user/store-page-client';
 
 async function getStore(id: string) {
   const supabase = await createClient();
@@ -13,13 +8,21 @@ async function getStore(id: string) {
     .from('stores')
     .select(`
       *,
-      settings:store_settings(delivery_fee, payment_methods)
+      area:areas(id, name),
+      settings:store_settings(delivery_fee, payment_methods, cod_max_limit)
     `)
     .eq('id', id)
     .eq('status', 'approved')
     .single();
 
-  if (error || !data) {
+  if (error) {
+    console.error('Error fetching store:', error);
+    console.error('Store ID:', id);
+    return null;
+  }
+
+  if (!data) {
+    console.log('Store not found or not approved. Store ID:', id);
     return null;
   }
 
@@ -69,106 +72,29 @@ export default async function StorePage({
   params: { id: string };
   searchParams: { productId?: string };
 }) {
+  console.log('StorePage - params.id:', params.id);
+  console.log('StorePage - searchParams.productId:', searchParams.productId);
+  
   const store = await getStore(params.id);
   const products = await getProducts(params.id);
 
   if (!store) {
+    console.log('Store not found, redirecting to /user/home');
     redirect('/user/home');
   }
+  
+  console.log('Store found:', store.name);
+  console.log('Products count:', products.length);
 
   // Get selected product if productId is provided
-  const selectedProduct = searchParams.productId 
-    ? products.find((p: any) => p.id === searchParams.productId)
-    : null;
+  const selectedProductId = searchParams.productId || null;
 
   return (
-    <div>
-      <div className="mb-8">
-        <div className="relative h-64 w-full mb-4 rounded-lg overflow-hidden">
-          {store.banner_url ? (
-            <Image
-              src={getImageUrl(store.banner_url, 'medium') || '/placeholder-store.jpg'}
-              alt={store.name}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-orange-200 to-red-200 dark:from-orange-900 dark:to-red-900 flex items-center justify-center">
-              <span className="text-6xl">🏪</span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">{store.name}</h1>
-            {store.description && (
-              <p className="text-muted-foreground mb-4">{store.description}</p>
-            )}
-          </div>
-          <Badge variant={store.is_open ? 'default' : 'secondary'} className="ml-4">
-            {store.is_open ? 'Buka' : 'Tutup'}
-          </Badge>
-        </div>
-        
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            <span>{store.address}</span>
-          </div>
-          {store.phone && (
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              <span>{store.phone}</span>
-            </div>
-          )}
-          {store.email && (
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              <span>{store.email}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Payment Methods */}
-        <Card className="mb-4">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Metode Pembayaran
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {(store as any).settings?.payment_methods ? (
-                JSON.parse((store as any).settings.payment_methods || '[]').map((method: string) => (
-                  <Badge key={method} variant="outline">
-                    {method === 'COD' ? 'COD (Bayar di Tempat)' : 
-                     method === 'TRANSFER' ? 'Transfer Bank' :
-                     method === 'QRIS' ? 'QRIS' : method}
-                  </Badge>
-                ))
-              ) : (
-                <>
-                  <Badge variant="outline">COD (Bayar di Tempat)</Badge>
-                  <Badge variant="outline">Transfer Bank</Badge>
-                  <Badge variant="outline">QRIS</Badge>
-                </>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              💡 Pembayaran dilakukan langsung ke toko, bukan melalui aplikasi.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div>
-        <StoreMenuDisplay 
-          products={products} 
-          selectedProductId={selectedProduct?.id || null}
-        />
-      </div>
-    </div>
+    <StorePageClient
+      store={store}
+      products={products}
+      selectedProductId={selectedProductId}
+    />
   );
 }
 

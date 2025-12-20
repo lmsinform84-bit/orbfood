@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth } from '@/lib/auth';
-import { UnpaidInvoicesList } from '@/components/toko/unpaid-invoices-list';
+import { InvoicePageClient } from '@/components/toko/invoice-page-client';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
 
 async function getStore(userId: string) {
   const supabase = await createClient();
@@ -18,6 +17,30 @@ async function getStore(userId: string) {
   }
 
   return data;
+}
+
+async function getCompletedOrders(storeId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      items:order_items(
+        *,
+        product:products(id, name, image_url)
+      )
+    `)
+    .eq('store_id', storeId)
+    .eq('status', 'selesai')
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error('Error fetching completed orders:', error);
+    return [];
+  }
+
+  return data || [];
 }
 
 export default async function InvoicePage() {
@@ -41,24 +64,15 @@ export default async function InvoicePage() {
     );
   }
 
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <FileText className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl md:text-3xl font-bold">Invoice Toko</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Tagihan yang perlu dibayar
-        </p>
-      </div>
+  const orders = await getCompletedOrders(store.id);
 
-      <UnpaidInvoicesList
-        storeId={store.id}
-        storeName={store.name}
-        orbQrisUrl={(store as any).orb_qris_url || null}
-      />
-    </div>
+  return (
+    <InvoicePageClient
+      storeName={store.name}
+      storeId={store.id}
+      orders={orders}
+      orbQrisUrl={(store as any).orb_qris_url || null}
+    />
   );
 }
 

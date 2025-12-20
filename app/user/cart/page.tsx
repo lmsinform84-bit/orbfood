@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Minus, Plus, Trash2, ShoppingCart, CreditCard, AlertCircle } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, CreditCard, AlertCircle, ArrowLeft, Home } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -55,6 +56,8 @@ export default function CartPage() {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
+  const [codMaxLimit, setCodMaxLimit] = useState<number | null>(null);
+
   useEffect(() => {
     // Load user address
     const loadUserAddress = async () => {
@@ -72,21 +75,28 @@ export default function CartPage() {
     };
     loadUserAddress();
 
-    // Load delivery fee from first store in cart
-    const loadDeliveryFee = async () => {
+    // Load delivery fee and COD limit from first store in cart
+    const loadStoreSettings = async () => {
       if (cart.length > 0) {
         const firstStoreId = cart[0].storeId;
         const { data } = await supabase
           .from('store_settings')
-          .select('delivery_fee')
+          .select('delivery_fee, cod_max_limit')
           .eq('store_id', firstStoreId)
           .single();
-        if (data?.delivery_fee) {
-          setDeliveryFee(data.delivery_fee);
+        if (data) {
+          if (data.delivery_fee) {
+            setDeliveryFee(data.delivery_fee);
+          }
+          if (data.cod_max_limit) {
+            setCodMaxLimit(data.cod_max_limit);
+          } else {
+            setCodMaxLimit(50000); // Default
+          }
         }
       }
     };
-    loadDeliveryFee();
+    loadStoreSettings();
   }, [cart]);
 
   const updateQuantity = (productId: string, newQuantity: number) => {
@@ -110,6 +120,7 @@ export default function CartPage() {
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const total = subtotal + deliveryFee;
+  const isCodDisabled = paymentMethod === 'COD' && codMaxLimit && total > codMaxLimit;
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -156,20 +167,82 @@ export default function CartPage() {
 
   if (cart.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <ShoppingCart className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Keranjang Kosong</h2>
-        <p className="text-muted-foreground mb-4">Tambahkan item ke keranjang untuk melanjutkan</p>
-        <Button onClick={() => router.push('/user/home')}>Belanja Sekarang</Button>
+      <div className="min-h-screen bg-background">
+        {/* Navigation Header */}
+        <div className="sticky top-0 z-50 bg-[#1E3A8A] border-b border-[#1E3A8A]/20">
+          <div className="container mx-auto px-3 sm:px-4">
+            <div className="flex h-14 sm:h-16 items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Link href="/user/home">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0 text-white hover:bg-white/20"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <h1 className="font-bold text-lg sm:text-xl text-white truncate">
+                  Keranjang
+                </h1>
+              </div>
+              <Link href="/user/home">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0 text-white hover:bg-white/20"
+                >
+                  <Home className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12">
+          <ShoppingCart className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Keranjang Kosong</h2>
+          <p className="text-muted-foreground mb-4">Tambahkan item ke keranjang untuk melanjutkan</p>
+          <Button onClick={() => router.push('/user/home')}>Belanja Sekarang</Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Keranjang</h1>
+    <div className="min-h-screen bg-background">
+      {/* Navigation Header */}
+      <div className="sticky top-0 z-50 bg-[#1E3A8A] border-b border-[#1E3A8A]/20">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="flex h-14 sm:h-16 items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Link href="/user/home">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0 text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <h1 className="font-bold text-lg sm:text-xl text-white truncate">
+                Keranjang
+              </h1>
+            </div>
+            <Link href="/user/home">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0 text-white hover:bg-white/20"
+              >
+                <Home className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
           {cart.map((item) => (
             <Card key={item.productId}>
@@ -184,7 +257,7 @@ export default function CartPage() {
                         className="object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 flex items-center justify-center">
+                      <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
                         <span className="text-2xl">🍽️</span>
                       </div>
                     )}
@@ -262,9 +335,25 @@ export default function CartPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="QRIS">QRIS Toko</SelectItem>
-                    <SelectItem value="COD">Cash / COD (Bayar di Tempat)</SelectItem>
+                    <SelectItem 
+                      value="COD" 
+                      disabled={isCodDisabled}
+                    >
+                      Cash / COD (Bayar di Tempat)
+                      {codMaxLimit && ` (Max Rp${codMaxLimit.toLocaleString('id-ID')})`}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
+                {isCodDisabled && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      COD hanya tersedia sampai Rp{codMaxLimit?.toLocaleString('id-ID')}. 
+                      Total pesanan Anda: Rp{total.toLocaleString('id-ID')}. 
+                      Silakan pilih metode pembayaran QRIS.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               <Alert>
@@ -293,12 +382,13 @@ export default function CartPage() {
               <Button
                 className="w-full"
                 onClick={handleCheckout}
-                disabled={loading || !deliveryAddress.trim() || !paymentMethod}
+                disabled={loading || !deliveryAddress.trim() || !paymentMethod || isCodDisabled}
               >
                 {loading ? 'Memproses...' : 'Lanjut ke Konfirmasi'}
               </Button>
             </CardContent>
           </Card>
+        </div>
         </div>
       </div>
     </div>

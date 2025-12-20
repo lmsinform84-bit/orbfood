@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale/id';
 import { OrderStatus } from '@/types/database';
+import { ArrowLeft, Home } from 'lucide-react';
 
 async function getOrders(userId: string) {
   const supabase = await createClient();
@@ -67,9 +68,39 @@ export default async function OrdersPage() {
   const orders = await getOrders(user.id);
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Riwayat Pesanan</h1>
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Navigation Header */}
+      <div className="sticky top-0 z-50 bg-[#1E3A8A] border-b border-[#1E3A8A]/20">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="flex h-14 sm:h-16 items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Link href="/user/home">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0 text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <h1 className="font-bold text-lg sm:text-xl text-white truncate">
+                Riwayat Pesanan
+              </h1>
+            </div>
+            <Link href="/user/home">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0 text-white hover:bg-white/20"
+              >
+                <Home className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
 
+      <div className="container mx-auto px-4 py-6">
       {orders.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -140,6 +171,7 @@ export default async function OrdersPage() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

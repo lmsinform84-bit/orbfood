@@ -61,7 +61,7 @@ export default async function MyOrdersPage() {
   const orders = await getActiveOrders(user.id);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-background">
       <UserHeader />
       <div className="container mx-auto px-4 py-6">
         {/* Navigation */}
@@ -73,30 +73,31 @@ export default async function MyOrdersPage() {
                 Kembali
               </Button>
             </Link>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
               Pesanan Anda
             </h1>
           </div>
           <Link href="/user/orders">
             <Button variant="outline" size="sm" className="gap-2">
               <History className="h-4 w-4" />
-              Riwayat Pesanan
+              <span className="hidden sm:inline">Riwayat Pesanan</span>
+              <span className="sm:hidden">Riwayat</span>
             </Button>
           </Link>
         </div>
 
         {orders.length === 0 ? (
-          <Card className="rounded-2xl border border-gray-200 bg-white">
+          <Card className="rounded-2xl border">
             <CardContent className="py-12 text-center">
               <div className="flex flex-col items-center gap-4">
-                <div className="bg-gray-100 rounded-full p-4">
-                  <History className="h-12 w-12 text-gray-400" />
+                <div className="bg-muted rounded-full p-4">
+                  <History className="h-12 w-12 text-muted-foreground" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  <h3 className="text-lg font-semibold text-foreground mb-1">
                     Tidak ada pesanan aktif
                   </h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-muted-foreground mb-4">
                     Semua pesanan Anda sudah selesai
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2 justify-center">
@@ -121,7 +122,7 @@ export default async function MyOrdersPage() {
           <div className="space-y-4">
             {orders.map((order: any) => (
               <Link key={order.id} href={`/user/orders/${order.id}`}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer rounded-2xl border border-gray-200 bg-white">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer rounded-2xl border">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
@@ -132,7 +133,7 @@ export default async function MyOrdersPage() {
                       </div>
                       <Badge 
                         variant={getStatusBadgeVariant(order.status)}
-                        className="bg-[#22C55E] text-white border-0"
+                        className="bg-green-500 text-white border-0"
                       >
                         {getStatusLabel(order.status)}
                       </Badge>
@@ -159,7 +160,7 @@ export default async function MyOrdersPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-muted-foreground">Total</div>
-                          <div className="text-xl font-bold text-[#1E3A8A]">
+                          <div className="text-xl font-bold text-primary">
                             Rp {order.final_total.toLocaleString('id-ID')}
                           </div>
                         </div>

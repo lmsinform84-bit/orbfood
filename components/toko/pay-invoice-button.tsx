@@ -22,12 +22,29 @@ import { getImageUrl } from '@/lib/utils/image';
 
 interface PayInvoiceButtonProps {
   orderId: string;
-  feeAmount: number;
+  feeAmount?: number;
+  amount?: number; // Alternative prop name
+  invoiceId?: string;
   orbQrisUrl?: string | null;
   onPaymentSuccess?: () => void;
+  buttonText?: string; // Custom button text
+  buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
+  buttonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
 }
 
-export function PayInvoiceButton({ orderId, feeAmount, orbQrisUrl: initialOrbQrisUrl, onPaymentSuccess }: PayInvoiceButtonProps) {
+export function PayInvoiceButton({ 
+  orderId, 
+  feeAmount, 
+  amount,
+  invoiceId,
+  orbQrisUrl: initialOrbQrisUrl, 
+  onPaymentSuccess,
+  buttonText = 'Bayar Invoice',
+  buttonSize = 'default',
+  buttonVariant = 'default',
+}: PayInvoiceButtonProps) {
+  // Use amount if provided, otherwise use feeAmount, default to 0
+  const finalFeeAmount = amount ?? feeAmount ?? 0;
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -169,6 +186,7 @@ export function PayInvoiceButton({ orderId, feeAmount, orbQrisUrl: initialOrbQri
           },
           body: JSON.stringify({
             orderId: orderId, // API will get or create invoice for this order
+            invoiceId: invoiceId, // Use invoiceId if provided
             paymentProofUrl: urlData.publicUrl,
           }),
         });
@@ -211,9 +229,9 @@ export function PayInvoiceButton({ orderId, feeAmount, orbQrisUrl: initialOrbQri
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full" variant="default">
+        <Button className="w-full" variant={buttonVariant} size={buttonSize}>
           <CreditCard className="h-4 w-4 mr-2" />
-          Bayar Invoice
+          {buttonText}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -222,7 +240,7 @@ export function PayInvoiceButton({ orderId, feeAmount, orbQrisUrl: initialOrbQri
           <DialogDescription>
             Upload bukti pembayaran fee ORB sebesar{' '}
             <span className="font-bold text-primary">
-              Rp {feeAmount.toLocaleString('id-ID')}
+              Rp {finalFeeAmount.toLocaleString('id-ID')}
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -257,7 +275,7 @@ export function PayInvoiceButton({ orderId, feeAmount, orbQrisUrl: initialOrbQri
               <strong>Instruksi:</strong>
               <ol className="list-decimal list-inside mt-1 space-y-1">
                 <li>Scan QRIS di atas menggunakan aplikasi e-wallet atau mobile banking</li>
-                <li>Transfer sesuai dengan jumlah fee: <strong>Rp {feeAmount.toLocaleString('id-ID')}</strong></li>
+                <li>Transfer sesuai dengan jumlah fee: <strong>Rp {finalFeeAmount.toLocaleString('id-ID')}</strong></li>
                 <li>Setelah transfer, upload bukti pembayaran di bawah ini</li>
               </ol>
             </AlertDescription>

@@ -10,7 +10,8 @@ import { UpdateOrderStatusButton } from '@/components/toko/update-order-status-b
 import { OrderStatus } from '@/types/database';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Phone, MapPin, FileText, CreditCard } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Phone, MapPin, FileText, CreditCard, AlertCircle } from 'lucide-react';
 
 interface OrderItem {
   id: string;
@@ -31,6 +32,8 @@ interface Order {
   delivery_address: string;
   notes: string | null;
   payment_method: string | null;
+  payment_proof_url: string | null;
+  payment_proof_uploaded_at: string | null;
   created_at: string;
   user: {
     id: string;
@@ -320,6 +323,37 @@ function OrderCard({ order }: { order: Order }) {
                       </div>
                     )}
                   </div>
+
+                  {/* Payment Info */}
+                  {order.payment_method === 'QRIS' && (
+                    <div className="mt-4 space-y-3">
+                      {order.payment_proof_url ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Bukti Pembayaran</p>
+                          <div className="relative w-full h-64 border rounded-lg overflow-hidden bg-muted">
+                            <Image
+                              src={order.payment_proof_url}
+                              alt="Bukti pembayaran"
+                              fill
+                              className="object-contain"
+                            />
+                          </div>
+                          {order.payment_proof_uploaded_at && (
+                            <p className="text-xs text-muted-foreground">
+                              Diupload: {format(new Date(order.payment_proof_uploaded_at), 'dd MMM yyyy HH:mm', { locale: id })}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <Alert>
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">
+                            Menunggu pelanggan mengupload bukti pembayaran QRIS.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
 
                   {/* Actions */}
                   {order.status !== 'selesai' && order.status !== 'dibatalkan' && (
