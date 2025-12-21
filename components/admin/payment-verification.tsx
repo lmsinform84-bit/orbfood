@@ -88,75 +88,75 @@ export function PaymentVerification({ orders, storeId, storeName }: PaymentVerif
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [invoiceStatuses, setInvoiceStatuses] = useState<Record<string, InvoiceStatus>>({});
 
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      setLoading(true);
-      const proofs: Record<string, PaymentProof> = {};
-      const statuses: Record<string, InvoiceStatus> = {};
+  const fetchInvoices = async () => {
+    setLoading(true);
+    const proofs: Record<string, PaymentProof> = {};
+    const statuses: Record<string, InvoiceStatus> = {};
 
-      // For each order, get invoice from database
-      for (const order of orders) {
-        try {
-          // Get invoice from database
-          const response = await fetch(`/api/invoices/${order.id}`);
-          if (response.ok) {
-            const data = await response.json();
-            const invoice = data.invoice;
-            
-            // Get status from database
-            statuses[order.id] = invoice.status as InvoiceStatus;
-            
-            // If invoice has payment proof URL, use it
-            if (invoice.payment_proof_url) {
-              proofs[order.id] = {
-                fileName: invoice.payment_proof_url.split('/').pop() || 'proof',
-                url: invoice.payment_proof_url,
-                uploadedAt: invoice.payment_proof_uploaded_at || new Date().toISOString(),
-                rejected: invoice.payment_proof_rejected || false,
-              };
-            }
-          } else {
-            // Invoice doesn't exist yet, default to menunggu_pembayaran
-            statuses[order.id] = 'menunggu_pembayaran';
+    // For each order, get invoice from database
+    for (const order of orders) {
+      try {
+        // Get invoice from database
+        const response = await fetch(`/api/invoices/${order.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          const invoice = data.invoice;
+          
+          // Get status from database
+          statuses[order.id] = invoice.status as InvoiceStatus;
+          
+          // If invoice has payment proof URL, use it
+          if (invoice.payment_proof_url) {
+            proofs[order.id] = {
+              fileName: invoice.payment_proof_url.split('/').pop() || 'proof',
+              url: invoice.payment_proof_url,
+              uploadedAt: invoice.payment_proof_uploaded_at || new Date().toISOString(),
+              rejected: invoice.payment_proof_rejected || false,
+            };
           }
-
-          // Also check storage for any uploaded files (fallback)
-          const { data: files, error } = await supabase.storage
-            .from('store-uploads')
-            .list('invoice-payments', {
-              limit: 100,
-              offset: 0,
-              sortBy: { column: 'created_at', order: 'desc' },
-            });
-
-          if (!error && files) {
-            const orderFiles = files.filter(file => file.name.startsWith(order.id));
-            
-            if (orderFiles.length > 0 && !proofs[order.id]) {
-              // Only use storage if database doesn't have proof
-              const latestFile = orderFiles[0];
-              const { data: urlData } = supabase.storage
-                .from('store-uploads')
-                .getPublicUrl(`invoice-payments/${latestFile.name}`);
-
-              proofs[order.id] = {
-                fileName: latestFile.name,
-                url: urlData.publicUrl,
-                uploadedAt: latestFile.created_at || latestFile.updated_at || new Date().toISOString(),
-              };
-            }
-          }
-        } catch (error) {
-          console.error(`Error processing order ${order.id}:`, error);
+        } else {
+          // Invoice doesn't exist yet, default to menunggu_pembayaran
           statuses[order.id] = 'menunggu_pembayaran';
         }
+
+        // Also check storage for any uploaded files (fallback)
+        const { data: files, error } = await supabase.storage
+          .from('store-uploads')
+          .list('invoice-payments', {
+            limit: 100,
+            offset: 0,
+            sortBy: { column: 'created_at', order: 'desc' },
+          });
+
+        if (!error && files) {
+          const orderFiles = files.filter(file => file.name.startsWith(order.id));
+          
+          if (orderFiles.length > 0 && !proofs[order.id]) {
+            // Only use storage if database doesn't have proof
+            const latestFile = orderFiles[0];
+            const { data: urlData } = supabase.storage
+              .from('store-uploads')
+              .getPublicUrl(`invoice-payments/${latestFile.name}`);
+
+            proofs[order.id] = {
+              fileName: latestFile.name,
+              url: urlData.publicUrl,
+              uploadedAt: latestFile.created_at || latestFile.updated_at || new Date().toISOString(),
+            };
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing order ${order.id}:`, error);
+        statuses[order.id] = 'menunggu_pembayaran';
       }
+    }
 
-      setPaymentProofs(proofs);
-      setInvoiceStatuses(statuses);
-      setLoading(false);
-    };
+    setPaymentProofs(proofs);
+    setInvoiceStatuses(statuses);
+    setLoading(false);
+  };
 
+  useEffect(() => {
     if (orders.length > 0) {
       fetchInvoices();
     } else {
@@ -303,27 +303,50 @@ export function PaymentVerification({ orders, storeId, storeName }: PaymentVerif
         description: 'Invoice ditandai LUNAS. Periode ditutup dan periode baru dimulai.',
       });
       
-      // Update activity log
-      setActivityLogs(prev => [...prev, {
-        id: Date.now().toString(),
-        action: 'payment_confirmed',
-        timestamp: new Date().toISOString(),
-        description: `Pembayaran dikonfirmasi oleh admin. Invoice LUNAS.`,
-      }]);
+      // Fetch updated invoice data from server to get latest status
+      try {
+        const updatedInvoiceResponse = await fetch(`/api/invoices/${orderId}`);
+        if (updatedInvoiceResponse.ok) {
+          const updatedData = await updatedInvoiceResponse.json();
+          const updatedInvoice = updatedData.invoice;
+          
+          // Update status in local state with data from server
+          setInvoiceStatuses(prev => ({
+            ...prev,
+            [selectedInvoice.order.id]: updatedInvoice.status as InvoiceStatus,
+          }));
+          
+          // Update selected invoice status
+          setSelectedInvoice({
+            ...selectedInvoice,
+            status: updatedInvoice.status as InvoiceStatus,
+          });
+          
+          // Update activity logs with latest data
+          const updatedLogs = generateActivityLogs(
+            selectedInvoice.order,
+            !!selectedInvoice.proof,
+            updatedInvoice.status as InvoiceStatus
+          );
+          setActivityLogs(updatedLogs);
+        }
+      } catch (fetchError) {
+        console.error('Error fetching updated invoice:', fetchError);
+        // Fallback: update local state anyway
+        setInvoiceStatuses(prev => ({
+          ...prev,
+          [selectedInvoice.order.id]: 'lunas',
+        }));
+        setSelectedInvoice({
+          ...selectedInvoice,
+          status: 'lunas',
+        });
+      }
       
-      // Update status in local state
-      setInvoiceStatuses(prev => ({
-        ...prev,
-        [selectedInvoice.order.id]: 'lunas',
-      }));
+      // Refresh all invoice data from server to update badges
+      await fetchInvoices();
       
-      // Update selected invoice status
-      setSelectedInvoice({
-        ...selectedInvoice,
-        status: 'lunas',
-      });
-      
-      // Refresh to get updated data
+      // Refresh router to get updated data
       router.refresh();
     } catch (error: any) {
       console.error('Error confirming payment:', error);

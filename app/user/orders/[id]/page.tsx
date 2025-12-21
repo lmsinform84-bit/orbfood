@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { OrderStatus } from '@/types/database';
 import { PaymentProofUpload } from '@/components/user/payment-proof-upload';
 import { useToast } from '@/hooks/use-toast';
+import { AdditionalFeeApproval } from '@/components/user/additional-fee-approval';
 
 interface OrderDetail {
   id: string;
@@ -41,6 +42,8 @@ interface OrderDetail {
   payment_method: string | null;
   payment_proof_url: string | null;
   payment_proof_uploaded_at: string | null;
+  additional_delivery_fee: number | null;
+  additional_delivery_note: string | null;
   created_at: string;
   updated_at: string;
   store: {
@@ -66,6 +69,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
       return 'default';
+    case 'menunggu_persetujuan':
+      return 'secondary';
     case 'diproses':
       return 'secondary';
     case 'diantar':
@@ -83,6 +88,8 @@ const getStatusLabel = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
       return 'Menunggu Konfirmasi Toko';
+    case 'menunggu_persetujuan':
+      return 'Menunggu Persetujuan Anda';
     case 'diproses':
       return 'Pesanan Sedang Disiapkan';
     case 'diantar':
@@ -202,7 +209,7 @@ export default function OrderDetailPage() {
   }, [order]);
 
   const isActiveOrder = useMemo(() => {
-    return order?.status === 'pending' || order?.status === 'diproses' || order?.status === 'diantar';
+    return order?.status === 'pending' || order?.status === 'menunggu_persetujuan' || order?.status === 'diproses' || order?.status === 'diantar';
   }, [order?.status]);
 
   if (loading) {
@@ -283,11 +290,22 @@ export default function OrderDetailPage() {
         <AlertDescription>
           Status pesanan Anda akan diperbarui secara real-time. 
           {order.status === 'pending' && ' Silakan tunggu konfirmasi dari toko.'}
+          {order.status === 'menunggu_persetujuan' && ' Toko mengajukan ongkir tambahan. Silakan setujui atau tolak di bawah.'}
           {order.status === 'diproses' && ' Pesanan Anda sedang disiapkan oleh toko.'}
           {order.status === 'diantar' && ' 🚚 Pesanan sedang diantar. Mohon siapkan pembayaran jika COD.'}
           {order.status === 'selesai' && ' Pesanan Anda telah selesai. Terima kasih!'}
         </AlertDescription>
       </Alert>
+
+      {/* Additional Fee Approval for menunggu_persetujuan status */}
+      {order.status === 'menunggu_persetujuan' && order.additional_delivery_fee && (
+        <AdditionalFeeApproval
+          orderId={order.id}
+          currentTotal={order.final_total - order.additional_delivery_fee}
+          additionalFee={order.additional_delivery_fee}
+          note={order.additional_delivery_note}
+        />
+      )}
 
       {/* Confirm Received Button for diantar status */}
       {order.status === 'diantar' && (
@@ -445,6 +463,22 @@ export default function OrderDetailPage() {
                   <span>Ongkir</span>
                   <span>Rp {order.delivery_fee.toLocaleString('id-ID')}</span>
                 </div>
+              )}
+              {order.additional_delivery_fee && order.additional_delivery_fee > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-orange-600">
+                    <span>Tambahan Ongkir</span>
+                    <span>+ Rp {order.additional_delivery_fee.toLocaleString('id-ID')}</span>
+                  </div>
+                  {order.additional_delivery_note && (
+                    <Alert className="bg-orange-50 border-orange-200">
+                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                      <AlertDescription className="text-xs text-orange-700">
+                        {order.additional_delivery_note}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </>
               )}
               <div className="flex justify-between font-bold text-lg pt-2 border-t">
                 <span>Total</span>

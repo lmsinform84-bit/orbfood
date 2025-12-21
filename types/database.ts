@@ -1,5 +1,5 @@
 export type UserRole = 'user' | 'toko' | 'admin';
-export type OrderStatus = 'pending' | 'diproses' | 'diantar' | 'selesai' | 'dibatalkan';
+export type OrderStatus = 'pending' | 'menunggu_persetujuan' | 'diproses' | 'diantar' | 'selesai' | 'dibatalkan';
 export type StoreStatus = 'pending' | 'approved' | 'suspended' | 'rejected';
 
 export interface User {
@@ -49,6 +49,7 @@ export interface StoreSettings {
   auto_accept_orders: boolean;
   min_order_amount: number;
   delivery_fee: number;
+  min_order_free_shipping: number | null;
   estimated_preparation_time: number;
   payment_methods: string[] | null;
   cod_max_limit: number | null;
@@ -76,6 +77,8 @@ export interface Order {
   store_id: string;
   total_price: number;
   delivery_fee: number;
+  additional_delivery_fee: number | null;
+  additional_delivery_note: string | null;
   final_total: number;
   status: OrderStatus;
   delivery_address: string;
@@ -99,5 +102,31 @@ export interface OrderWithDetails extends Order {
   store: Store;
   user: User;
   items: (OrderItem & { product: Product })[];
+}
+
+export interface Invoice {
+  id: string;
+  store_id: string;
+  status: 'ACTIVE' | 'PENDING_VERIFICATION' | 'PAID' | 'CANCELLED';
+  total_fee: number;
+  total_orders: number;
+  opened_at: string;
+  closed_at: string | null;
+  payment_proof_url: string | null;
+  payment_submitted_at: string | null;
+  verified_by: string | null;
+  verified_at: string | null;
+  previous_invoice_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoice_id: string;
+  order_id: string;
+  fee_amount: number;
+  created_at: string;
+  updated_at: string;
 }
 

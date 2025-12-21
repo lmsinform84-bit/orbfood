@@ -23,7 +23,7 @@ async function getActiveOrders(userId: string) {
       )
     `)
     .eq('user_id', userId)
-    .in('status', ['pending', 'diproses', 'diantar'])
+    .in('status', ['pending', 'menunggu_persetujuan', 'diproses', 'diantar'])
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -38,6 +38,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
       return 'default';
+    case 'menunggu_persetujuan':
+      return 'secondary';
     case 'diproses':
       return 'secondary';
     case 'diantar':
@@ -51,6 +53,8 @@ const getStatusLabel = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
       return 'Menunggu Konfirmasi Toko';
+    case 'menunggu_persetujuan':
+      return 'Menunggu Persetujuan Anda';
     case 'diproses':
       return 'Pesanan Sedang Disiapkan';
     case 'diantar':

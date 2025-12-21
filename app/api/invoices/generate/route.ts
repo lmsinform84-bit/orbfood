@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get completed orders without invoices
+    // Get completed orders
     const { data: completedOrders, error: ordersError } = await supabase
       .from('orders')
-      .select('id, store_id, final_total, created_at')
+      .select('id, store_id, total_price, final_total, created_at')
       .eq('store_id', storeId)
       .eq('status', 'selesai')
       .order('created_at', { ascending: false });
@@ -47,86 +47,76 @@ export async function POST(request: NextRequest) {
     if (!completedOrders || completedOrders.length === 0) {
       return NextResponse.json({
         message: 'No completed orders found',
-        invoicesCreated: 0,
+        ordersAdded: 0,
       });
     }
 
-    // Get or create active period
-    const { data: period, error: periodError } = await supabase
-      .rpc('create_initial_store_period', { store_uuid: storeId });
-
-    if (periodError) {
-      console.error('Error creating period:', periodError);
-    }
-
-    // Check which orders already have invoices
+    // Check which orders already in invoices
     const orderIds = completedOrders.map(o => o.id);
-    console.log(`Checking ${orderIds.length} completed orders for existing invoices`);
+    console.log(`Checking ${orderIds.length} completed orders for existing invoice entries`);
     
-    const { data: existingInvoices, error: existingError } = await supabase
-      .from('invoices')
+    const { data: existingInvoiceOrders, error: existingError } = await supabase
+      .from('invoice_orders')
       .select('order_id')
       .in('order_id', orderIds);
 
     if (existingError) {
-      console.error('Error checking existing invoices:', existingError);
+      console.error('Error checking existing invoice orders:', existingError);
     }
 
-    const existingOrderIds = new Set(existingInvoices?.map(inv => inv.order_id) || []);
-    const ordersToInvoice = completedOrders.filter(o => !existingOrderIds.has(o.id));
+    const existingOrderIds = new Set(existingInvoiceOrders?.map(io => io.order_id) || []);
+    const ordersToAdd = completedOrders.filter(o => !existingOrderIds.has(o.id));
     
-    console.log(`Found ${existingOrderIds.size} existing invoices, ${ordersToInvoice.length} orders need invoices`);
+    console.log(`Found ${existingOrderIds.size} orders already in invoices, ${ordersToAdd.length} orders need to be added`);
 
-    if (ordersToInvoice.length === 0) {
+    if (ordersToAdd.length === 0) {
       return NextResponse.json({
-        message: 'All completed orders already have invoices',
-        invoicesCreated: 0,
+        message: 'All completed orders already in invoices',
+        ordersAdded: 0,
       });
     }
 
-    // Create invoices for orders without invoices
-    const invoicesToInsert = ordersToInvoice.map(order => ({
-      store_id: order.store_id,
-      period_id: period || null,
-      order_id: order.id,
-      total_orders: 1,
-      total_revenue: order.final_total || 0,
-      fee_amount: (order.final_total || 0) * 0.05,
-      status: 'menunggu_pembayaran',
-      period_start: order.created_at || new Date().toISOString(),
-      period_end: new Date().toISOString(),
-    }));
+    // Add orders to active invoice using the function
+    let ordersAdded = 0;
+    let invoiceId: string | null = null;
 
-    const { data: newInvoices, error: insertError } = await supabase
-      .from('invoices')
-      .insert(invoicesToInsert)
-      .select();
+    for (const order of ordersToAdd) {
+      try {
+        const { data: result, error: addError } = await supabase
+          .rpc('add_order_to_active_invoice_with_subtotal', {
+            store_uuid: order.store_id,
+            order_uuid: order.id,
+            order_subtotal: order.total_price || 0,
+          });
 
-    if (insertError) {
-      console.error('Error creating invoices:', insertError);
-      return NextResponse.json(
-        { error: 'Failed to create invoices', details: insertError.message },
-        { status: 500 }
-      );
+        if (addError) {
+          console.error(`Error adding order ${order.id} to invoice:`, addError);
+        } else {
+          ordersAdded++;
+          if (!invoiceId && result) {
+            invoiceId = result;
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing order ${order.id}:`, error);
+      }
     }
 
-    // Create activity logs
-    if (newInvoices && newInvoices.length > 0) {
-      const logsToInsert = newInvoices.map(invoice => ({
-        invoice_id: invoice.id,
-        action: 'invoice_created',
-        description: 'Invoice dibuat untuk order',
-      }));
-
+    // Create activity log if orders were added
+    if (ordersAdded > 0 && invoiceId) {
       await supabase
         .from('invoice_activity_logs')
-        .insert(logsToInsert);
+        .insert({
+          invoice_id: invoiceId,
+          action: 'orders_added',
+          description: `${ordersAdded} order ditambahkan ke invoice periode`,
+        });
     }
 
     return NextResponse.json({
-      message: `Created ${newInvoices?.length || 0} invoices`,
-      invoicesCreated: newInvoices?.length || 0,
-      invoices: newInvoices,
+      message: `Added ${ordersAdded} orders to active period invoice`,
+      ordersAdded: ordersAdded,
+      invoiceId: invoiceId,
     });
 
   } catch (error: any) {

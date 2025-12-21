@@ -18,15 +18,26 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 
-interface Invoice {
+interface InvoiceOrder {
   id: string;
   order_id: string;
+  order_revenue: number;
+  order_fee: number;
+  orders?: {
+    id: string;
+    created_at: string;
+    final_total: number;
+  };
+}
+
+interface Invoice {
+  id: string;
+  order_id?: string | null;
+  total_orders: number;
   total_revenue: number;
   fee_amount: number;
   status: string;
   created_at: string;
-  period_start?: string;
-  period_end?: string;
   period_start?: string;
   period_end?: string;
   payment_proof_url?: string | null;
@@ -36,6 +47,7 @@ interface Invoice {
     start_date: string;
     end_date?: string;
   } | null;
+  invoice_orders?: InvoiceOrder[];
   invoice_activity_logs?: Array<{
     id: string;
     action: string;
@@ -166,6 +178,9 @@ export function UnpaidInvoicesList({ storeId, storeName, orbQrisUrl }: UnpaidInv
                     <p className="text-lg font-semibold">
                       Rp {invoice.total_revenue.toLocaleString('id-ID')}
                     </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {invoice.total_orders} pesanan
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Fee ORBfood (5%)</p>
@@ -174,6 +189,28 @@ export function UnpaidInvoicesList({ storeId, storeName, orbQrisUrl }: UnpaidInv
                     </p>
                   </div>
                 </div>
+
+                {/* List of orders in this invoice */}
+                {invoice.invoice_orders && invoice.invoice_orders.length > 0 && (
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground mb-2">Daftar Pesanan:</p>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {invoice.invoice_orders.map((io) => (
+                        <div key={io.id} className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            #{io.orders?.id.slice(0, 8) || io.order_id.slice(0, 8)}
+                            {io.orders?.created_at && (
+                              <span className="ml-2">
+                                {format(new Date(io.orders.created_at), 'dd MMM', { locale: id })}
+                              </span>
+                            )}
+                          </span>
+                          <span>Rp {io.order_revenue.toLocaleString('id-ID')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {daysSinceCreated > 7 && (
                   <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
@@ -194,7 +231,6 @@ export function UnpaidInvoicesList({ storeId, storeName, orbQrisUrl }: UnpaidInv
                     Detail Invoice
                   </Button>
                   <PayInvoiceButton
-                    orderId={invoice.order_id}
                     invoiceId={invoice.id}
                     amount={invoice.fee_amount}
                     orbQrisUrl={orbQrisUrl}
@@ -302,6 +338,38 @@ export function UnpaidInvoicesList({ storeId, storeName, orbQrisUrl }: UnpaidInv
 
               <Separator />
 
+              {/* List of Orders */}
+              {selectedInvoice.invoice_orders && selectedInvoice.invoice_orders.length > 0 && (
+                <>
+                  <div>
+                    <h4 className="font-semibold mb-2">Daftar Pesanan ({selectedInvoice.total_orders})</h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {selectedInvoice.invoice_orders.map((io) => (
+                        <div key={io.id} className="flex justify-between items-center p-2 bg-muted/50 rounded text-sm">
+                          <div>
+                            <span className="font-medium">
+                              #{io.orders?.id.slice(0, 8) || io.order_id.slice(0, 8)}
+                            </span>
+                            {io.orders?.created_at && (
+                              <span className="text-muted-foreground ml-2">
+                                {format(new Date(io.orders.created_at), 'dd MMM yyyy', { locale: id })}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">Rp {io.order_revenue.toLocaleString('id-ID')}</div>
+                            <div className="text-xs text-muted-foreground">
+                              Fee: Rp {io.order_fee.toLocaleString('id-ID')}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
+
               <div>
                 <h4 className="font-semibold mb-2">Ringkasan Keuangan</h4>
                 <div className="space-y-2">
@@ -350,7 +418,6 @@ export function UnpaidInvoicesList({ storeId, storeName, orbQrisUrl }: UnpaidInv
                   Tutup
                 </Button>
                 <PayInvoiceButton
-                  orderId={selectedInvoice.order_id}
                   invoiceId={selectedInvoice.id}
                   amount={selectedInvoice.fee_amount}
                   orbQrisUrl={orbQrisUrl}

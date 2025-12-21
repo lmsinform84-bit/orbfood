@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Phone, MapPin, FileText, CreditCard, AlertCircle } from 'lucide-react';
+import { ProposeAdditionalFeeButton } from '@/components/toko/propose-additional-fee-button';
 
 interface OrderItem {
   id: string;
@@ -28,6 +29,8 @@ interface Order {
   status: OrderStatus;
   total_price: number;
   delivery_fee: number;
+  additional_delivery_fee: number | null;
+  additional_delivery_note: string | null;
   final_total: number;
   delivery_address: string;
   notes: string | null;
@@ -51,6 +54,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
       return 'default';
+    case 'menunggu_persetujuan':
+      return 'secondary';
     case 'diproses':
       return 'secondary';
     case 'diantar':
@@ -68,6 +73,8 @@ const getStatusLabel = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
       return 'Menunggu';
+    case 'menunggu_persetujuan':
+      return 'Menunggu Persetujuan';
     case 'diproses':
       return 'Diproses';
     case 'diantar':
@@ -278,6 +285,22 @@ function OrderCard({ order }: { order: Order }) {
                         <span>Rp {order.delivery_fee.toLocaleString('id-ID')}</span>
                       </div>
                     )}
+                    {order.additional_delivery_fee && order.additional_delivery_fee > 0 && (
+                      <>
+                        <div className="flex justify-between text-sm text-orange-600">
+                          <span>Tambahan Ongkir</span>
+                          <span>+ Rp {order.additional_delivery_fee.toLocaleString('id-ID')}</span>
+                        </div>
+                        {order.additional_delivery_note && (
+                          <Alert className="bg-orange-50 border-orange-200">
+                            <AlertCircle className="h-4 w-4 text-orange-600" />
+                            <AlertDescription className="text-xs text-orange-700">
+                              {order.additional_delivery_note}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </>
+                    )}
                     <div className="flex justify-between font-bold text-lg pt-2 border-t">
                       <span>Total</span>
                       <span className="text-primary">
@@ -361,7 +384,15 @@ function OrderCard({ order }: { order: Order }) {
 
                   {/* Actions */}
                   {order.status !== 'selesai' && order.status !== 'dibatalkan' && (
-                    <div className="pt-4 border-t">
+                    <div className="pt-4 border-t space-y-3">
+                      {order.status === 'pending' && (
+                        <div className="flex gap-2 flex-wrap">
+                          <ProposeAdditionalFeeButton
+                            orderId={order.id}
+                            currentTotal={order.final_total}
+                          />
+                        </div>
+                      )}
                       <UpdateOrderStatusButton
                         orderId={order.id}
                         currentStatus={order.status}

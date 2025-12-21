@@ -13,27 +13,42 @@ export async function GET(
     const supabase = await createClient();
     const orderId = params.orderId;
 
-    // Get invoice by order_id
-    const { data: invoice, error: invoiceError } = await supabase
-      .from('invoices')
-      .select('*')
+    // Get invoice from invoice_orders by order_id
+    const { data: invoiceOrder, error: invoiceOrderError } = await supabase
+      .from('invoice_orders')
+      .select('invoice_id')
       .eq('order_id', orderId)
       .single();
 
-    if (invoiceError && invoiceError.code !== 'PGRST116') {
-      // PGRST116 = not found, which is okay
-      console.error('Error fetching invoice:', invoiceError);
+    if (invoiceOrderError && invoiceOrderError.code !== 'PGRST116') {
+      console.error('Error fetching invoice order:', invoiceOrderError);
     }
 
     // If invoice exists, return it
-    if (invoice) {
-      return NextResponse.json({ invoice });
+    if (invoiceOrder) {
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', invoiceOrder.invoice_id)
+        .single();
+
+      if (invoiceError) {
+        console.error('Error fetching invoice:', invoiceError);
+        return NextResponse.json(
+          { error: 'Failed to fetch invoice' },
+          { status: 500 }
+        );
+      }
+
+      if (invoice) {
+        return NextResponse.json({ invoice });
+      }
     }
 
-    // If invoice doesn't exist, get order details to create invoice
+    // If invoice doesn't exist, check if order is completed
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('store_id, final_total, created_at')
+      .select('store_id, final_total, created_at, status')
       .eq('id', orderId)
       .single();
 
@@ -72,64 +87,48 @@ export async function GET(
 
     if (!isAdmin && !isStoreOwner) {
       return NextResponse.json(
-        { error: 'Forbidden: You do not have permission to create invoice for this order' },
+        { error: 'Forbidden: You do not have permission to access invoice for this order' },
         { status: 403 }
       );
     }
 
-    // Get or create active period for store
-    const { data: period, error: periodError } = await supabase
-      .rpc('create_initial_store_period', { store_uuid: order.store_id });
-
-    if (periodError) {
-      console.error('Error creating period:', periodError);
+    // If order is not completed, return error
+    if (order.status !== 'selesai') {
+      return NextResponse.json(
+        { error: 'Order is not completed yet. Invoice will be created when order is completed.' },
+        { status: 400 }
+      );
     }
 
-    // Calculate fee
-    const feeAmount = (order.final_total || 0) * 0.05;
-
-    // Create invoice
-    const { data: newInvoice, error: createError } = await supabase
-      .from('invoices')
-      .insert({
-        store_id: order.store_id,
-        period_id: period || null,
-        order_id: orderId,
-        total_orders: 1,
-        total_revenue: order.final_total || 0,
-        fee_amount: feeAmount,
-        status: 'menunggu_pembayaran',
-        period_start: order.created_at || new Date().toISOString(),
-        period_end: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (createError) {
-      console.error('Error creating invoice:', createError);
-      console.error('Create error details:', {
-        code: createError.code,
-        message: createError.message,
-        details: createError.details,
-        hint: createError.hint,
+    // Add order to active invoice
+    const { data: invoiceId, error: addError } = await supabase
+      .rpc('add_order_to_active_invoice', {
+        store_uuid: order.store_id,
+        order_uuid: orderId,
+        order_total: order.final_total || 0,
       });
-      
-      // If RLS error, provide more helpful message
-      if (createError.code === '42501') {
-        return NextResponse.json(
-          { 
-            error: 'Permission denied. Please ensure you are logged in and have permission to create invoice for this order.',
-            details: createError.message 
-          },
-          { status: 403 }
-        );
-      }
-      
+
+    if (addError) {
+      console.error('Error adding order to invoice:', addError);
       return NextResponse.json(
         { 
-          error: 'Failed to create invoice',
-          details: createError.message 
+          error: 'Failed to add order to invoice',
+          details: addError.message 
         },
+        { status: 500 }
+      );
+    }
+
+    // Get the invoice
+    const { data: newInvoice, error: getInvoiceError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', invoiceId)
+      .single();
+
+    if (getInvoiceError || !newInvoice) {
+      return NextResponse.json(
+        { error: 'Failed to fetch created invoice' },
         { status: 500 }
       );
     }
@@ -139,8 +138,9 @@ export async function GET(
       .from('invoice_activity_logs')
       .insert({
         invoice_id: newInvoice.id,
-        action: 'invoice_created',
-        description: 'Invoice dibuat untuk order',
+        action: 'order_added',
+        description: `Order #${orderId.slice(0, 8)} ditambahkan ke invoice`,
+        performed_by: user.id,
       });
 
     return NextResponse.json({ invoice: newInvoice });

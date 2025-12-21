@@ -1,108 +1,198 @@
 
+# 🧾 ALUR INVOICE TAGIHAN TOKO → ORBFOOD
 
-# 📄 Fitur Invoice (UI/UX)
-
-## 1️⃣ Tujuan
-
-* Menampilkan tagihan toko ke ORBfood (fee 5% / order)
-* Menampilkan rekap transaksi perhari / perminggu / perbulan
-* Bisa diunduh / dicetak
-* Mempermudah kontrol pembayaran manual (transfer, bukti setor)
+**(Model Periodik, Akumulasi Order, Manual Settlement)**
 
 ---
 
-## 2️⃣ Struktur Halaman (Mobile-First)
+## 🎯 PRINSIP UTAMA
+
+1. **Tagihan bukan per order**
+2. **Invoice dibuka per periode**
+3. **Fee 5% diakumulasi**
+4. **Pembayaran dilakukan manual seperti yang sudah ada**
+5. **Status jelas & tercatat**
+
+---
+
+## 0️⃣ PENGATURAN DASAR (ADMIN)
+
+* Fee platform: **5%**
+* Periode invoice:
+
+  * Default: **7 hari**
+  * Alternatif: Harian / Mingguan / Bulanan
+* Sistem invoice:
+
+  * **Satu invoice aktif per toko**
+  * Invoice baru dibuat **setelah invoice lama lunas**
+
+---
+
+## 1️⃣ ORDER SELESAI → MASUK AKUMULASI INVOICE
+
+Setiap order yang:
+
+* Status: **selesai**
+* Milik toko tertentu
+* Belum masuk invoice lunas
+
+➡️ Sistem:
+
+* Hitung 5% dari `final_total`
+* Tambahkan ke **invoice aktif toko**
+
+### Contoh:s
+
+Order #101 → Rp30.000
+Fee 5% → Rp1.500
+➡️ Ditambahkan ke invoice berjalan
+
+---
+
+## 2️⃣ STRUKTUR INVOICE (PER TOKO)
+
+### Invoice Aktif
 
 ```
-┌─────────────────────────────┐
-│ ORBfood Invoice Toko Bu Sari│
-└─────────────────────────────┘
-│ Filter: [Hari] [Minggu] [Bulan] │
-└─────────────────────────────┘
-│ Total Omzet: Rp 320.000          │
-│ Fee ORB (5%): Rp 16.000          │
-│ Status Setoran: Belum / Sudah     │
-└─────────────────────────────┘
+Invoice ID     : INV-2024-001
+Periode        : 1 – 7 Juli 2024
+Status         : BELUM LUNAS
+
+Ringkasan:
+- Total order  : 18
+- Omzet toko  : Rp540.000
+- Fee ORBfood : Rp27.000 (5%)
 ```
 
+⚠️ **Order tidak ditampilkan satu-satu ke toko**
+Hanya:
+
+* Jumlah order
+* Total omzet
+* Total fee
+
+(Detail order bisa dibuka jika perlu)
+
 ---
 
-## 3️⃣ List Invoice (Card-Based)
+## 3️⃣ PERIODE BERAKHIR → INVOICE DITUTUP
 
-**Tiap transaksi / order:**
+Saat:
+
+* Periode habis (misal hari ke-7)
+
+➡️ Sistem:
+
+* Mengunci invoice
+* Status tetap **BELUM LUNAS**
+* Membuka **invoice baru** untuk periode berikutnya
+
+---
+
+## 4️⃣ NOTIFIKASI KE TOKO (WAJIB ADA)
+
+### Hari ke-5 (peringatan dini)
+
+> Invoice ORBfood Anda sudah berjalan 5 hari.
+> Agar tidak menumpuk, disarankan melakukan pembayaran.
+
+### Hari ke-7 (jatuh tempo)
+
+> Invoice ORBfood periode 1–7 Juli telah jatuh tempo.
+> Total tagihan: Rp27.000
+
+---
+
+## 5️⃣ TOKO MELAKUKAN PEMBAYARAN
+
+Toko:
+
+* Transfer ke rekening / QRIS ORBfood
+* Nominal **sesuai total invoice**
+
+---
+
+## 6️⃣ TOKO KONFIRMASI PEMBAYARAN
+
+Di dashboard toko:
 
 ```
-┌─────────────────────────────┐
-│ #ORD-2031  12 Des 2025      │
-│ Rp 27.000                    │
-│ Fee ORB: Rp 1.350            │
-│ Status: Belum / Diterima     │
-│ [Detail]                     │
-└─────────────────────────────┘
+Invoice INV-2024-001
+Total tagihan: Rp27.000
+
+[ Upload bukti transfer ]
+[ Konfirmasi pembayaran ]
 ```
 
-* **Warna status**:
-
-  * Belum → merah / oranye
-  * Diterima → hijau
-* **Detail tombol** → slide up sheet dengan rincian order (produk, qty, subtotal)
+➡️ Status invoice: **MENUNGGU VERIFIKASI**
 
 ---
 
-## 4️⃣ Tab Filter Ringkas
+## 7️⃣ ADMIN VERIFIKASI
 
-* **Hari / Minggu / Bulan**
-* Pilih rentang → update list invoice
-* Bisa **scroll horizontal** untuk waktu
+Admin:
 
-```
-[Hari Ini] [7 Hari] [30 Hari] [Custom]
-```
+* Cek mutasi bank / QRIS eksternal
+* Cocokkan nominal
+* Klik **Tandai Lunas**
 
-* Tab aktif → underline tebal warna primary ORB
-* Tab nonaktif → abu
+➡️ Status invoice: **LUNAS**
 
 ---
 
-## 5️⃣ Actions & CTA
+## 8️⃣ RESET TAGIHAN (OTOMATIS)
 
-* **Upload bukti transfer** → tombol besar & jelas
-* **Download PDF / Cetak** → icon print / download di top-right
-* **Refresh / Sync** → icon refresh kecil (opsional)
+Saat invoice lunas:
 
----
+* Invoice dipindahkan ke **History Pelunasan**
+* Invoice aktif toko = **nol**
+* Sistem membuka invoice baru untuk periode berikutnya
 
-## 6️⃣ UX Rules
-
-* **Ringkas & jelas**: user lihat total & status cukup dari 1 view
-* **Mobile-friendly**: card tinggi ±100px, padding nyaman
-* **Scrollable**: gunakan virtual list jika invoice banyak (>50)
-* **No clutter**: jangan pakai chart berat di mobile awal
+✔ Tidak ada dobel tagihan
+✔ Tidak ada order nyangkut
 
 ---
 
-## 7️⃣ Optional (Future)
+## 9️⃣ UI/UX RINGKAS
 
-* **Badge notifikasi**: misal ada invoice baru belum dibayar
-* **Search invoice**: cari by order id atau tanggal
-* **Export CSV**: untuk laporan toko / admin
+### 🧑‍🍳 Dashboard Toko
 
----
+* Banner:
 
-## 8️⃣ Komponen Teknis (Next.js + shadcn)
+  > Tagihan ORBfood periode ini: Rp27.000
+* Tombol:
 
-* `<Card />` → tiap invoice
-* `<TabsList />` → filter hari/minggu/bulan
-* `<Button />` → upload / download
-* `<Sheet />` → detail order
-* `<Badge />` → status invoice
+  * Lihat invoice
+  * Upload bukti bayar
 
 ---
 
-Kalau mau, aku bisa buatkan **prompt AI untuk generate UI ORBfood Invoice ini lengkap** dengan:
+### 🧑‍💼 Dashboard Admin
 
-* Layout mobile
-* Warna & font ORBfood
-* Komponen Tailwind / shadcn siap pakai
+* Tabel toko:
 
-Apakah mau aku buatkan prompt itu sekarang?
+  * Nama toko
+  * Invoice aktif
+  * Status
+  * Hari berjalan
+* Tab:
+
+  * Invoice aktif
+  * Riwayat pelunasan
+
+---
+
+## 🔐 KEAMANAN & KEADILAN
+
+* Tidak memotong uang toko
+* Tidak tahan saldo
+* Transparan
+* Bisa diaudit manual
+* Cocok QRIS statis
+
+---
+
+Persis seperti:
+
+ **Bayar listrik / air / 

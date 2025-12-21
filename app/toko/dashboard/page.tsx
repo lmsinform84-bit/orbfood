@@ -187,7 +187,7 @@ export default async function TokoDashboardPage() {
       )}
 
           {/* Shortcut Cards */}
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-3 gap-4">
             <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -214,6 +214,21 @@ export default async function TokoDashboardPage() {
           <CardContent>
             <Link href="/toko/orders">
               <Button className="w-full">Kelola Pesanan</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Store className="h-5 w-5" />
+                  Pengaturan
+                </CardTitle>
+            <CardDescription>Atur ongkir, COD limit, dan lainnya</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/toko/settings">
+              <Button className="w-full" variant="outline">Pengaturan Toko</Button>
             </Link>
           </CardContent>
         </Card>

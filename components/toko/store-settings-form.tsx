@@ -42,6 +42,7 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
     auto_accept_orders: settings?.auto_accept_orders || false,
     min_order_amount: settings?.min_order_amount?.toString() || '0',
     delivery_fee: settings?.delivery_fee?.toString() || '0',
+    min_order_free_shipping: settings?.min_order_free_shipping?.toString() || '',
     estimated_preparation_time: settings?.estimated_preparation_time?.toString() || '30',
   });
 
@@ -224,6 +225,7 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
             auto_accept_orders: settingsForm.auto_accept_orders,
             min_order_amount: parseFloat(settingsForm.min_order_amount),
             delivery_fee: parseFloat(settingsForm.delivery_fee),
+            min_order_free_shipping: settingsForm.min_order_free_shipping ? parseFloat(settingsForm.min_order_free_shipping) : null,
             estimated_preparation_time: parseInt(settingsForm.estimated_preparation_time),
           })
           .eq('id', settings.id);
@@ -238,6 +240,7 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
             auto_accept_orders: settingsForm.auto_accept_orders,
             min_order_amount: parseFloat(settingsForm.min_order_amount),
             delivery_fee: parseFloat(settingsForm.delivery_fee),
+            min_order_free_shipping: settingsForm.min_order_free_shipping ? parseFloat(settingsForm.min_order_free_shipping) : null,
             estimated_preparation_time: parseInt(settingsForm.estimated_preparation_time),
           })
           .select()
@@ -307,7 +310,7 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="delivery_fee">Ongkos Kirim (Rp)</Label>
+                    <Label htmlFor="delivery_fee">Ongkir Default (Rp) *</Label>
                     <Input
                       id="delivery_fee"
                       type="number"
@@ -317,7 +320,29 @@ export function StoreSettingsForm({ store: initialStore, settings: initialSettin
                       onChange={(e) =>
                         setSettingsForm({ ...settingsForm, delivery_fee: e.target.value })
                       }
+                      required
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Ongkir standar yang akan dikenakan jika tidak memenuhi syarat gratis ongkir
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="min_order_free_shipping">Minimal Belanja Gratis Ongkir (Rp) - Opsional</Label>
+                    <Input
+                      id="min_order_free_shipping"
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={settingsForm.min_order_free_shipping}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, min_order_free_shipping: e.target.value })
+                      }
+                      placeholder="Kosongkan jika tidak ada gratis ongkir"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Jika subtotal pesanan mencapai nilai ini, ongkir akan gratis
+                    </p>
                   </div>
 
                   <div className="space-y-2">

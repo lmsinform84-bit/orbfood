@@ -94,17 +94,22 @@ export function StoreInvoiceManagement({ storeId, storeName }: StoreInvoiceManag
         console.log('Note: Could not generate invoices (may already exist)');
       }
 
-      // Then fetch invoices
-      const response = await fetch(
-        `/api/invoices/list?store_id=${storeId}&status=menunggu_pembayaran`
-      );
-      const data = await response.json();
-      if (response.ok) {
-        console.log('Fetched unpaid invoices:', data.invoices);
-        setUnpaidInvoices(data.invoices || []);
-      } else {
-        console.error('Error fetching unpaid invoices:', data.error);
-      }
+      // Then fetch invoices (both menunggu_pembayaran and menunggu_verifikasi)
+      // We need to fetch both statuses separately and combine them
+      const [unpaidResponse, verificationResponse] = await Promise.all([
+        fetch(`/api/invoices/list?store_id=${storeId}&status=menunggu_pembayaran`),
+        fetch(`/api/invoices/list?store_id=${storeId}&status=menunggu_verifikasi`)
+      ]);
+      
+      const unpaidData = await unpaidResponse.json();
+      const verificationData = await verificationResponse.json();
+      
+      const allUnpaidInvoices = [
+        ...(unpaidData.invoices || []),
+        ...(verificationData.invoices || [])
+      ];
+      
+      setUnpaidInvoices(allUnpaidInvoices);
     } catch (error) {
       console.error('Error fetching unpaid invoices:', error);
     }
@@ -230,7 +235,16 @@ export function StoreInvoiceManagement({ storeId, storeName }: StoreInvoiceManag
                         {getPeriodText(invoice)}
                       </CardDescription>
                     </div>
-                    <Badge variant="destructive">Belum Dibayar</Badge>
+                    {(() => {
+                      const status = invoice.status;
+                      if (status === 'lunas') {
+                        return <Badge className="bg-green-500">🟢 Lunas</Badge>;
+                      } else if (status === 'menunggu_verifikasi') {
+                        return <Badge className="bg-blue-500">🔵 Menunggu Verifikasi</Badge>;
+                      } else {
+                        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-300">🟡 Menunggu Pembayaran</Badge>;
+                      }
+                    })()}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -373,7 +387,16 @@ export function StoreInvoiceManagement({ storeId, storeName }: StoreInvoiceManag
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant="destructive">Belum Dibayar</Badge>
+                  {(() => {
+                    const status = selectedInvoice.status;
+                    if (status === 'lunas') {
+                      return <Badge className="bg-green-500">🟢 Lunas</Badge>;
+                    } else if (status === 'menunggu_verifikasi') {
+                      return <Badge className="bg-blue-500">🔵 Menunggu Verifikasi</Badge>;
+                    } else {
+                      return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-300">🟡 Menunggu Pembayaran</Badge>;
+                    }
+                  })()}
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Tanggal Dibuat</p>

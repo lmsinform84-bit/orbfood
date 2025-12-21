@@ -81,7 +81,7 @@ export default function CartPage() {
         const firstStoreId = cart[0].storeId;
         const { data } = await supabase
           .from('store_settings')
-          .select('delivery_fee, cod_max_limit')
+          .select('delivery_fee, cod_max_limit, min_order_free_shipping')
           .eq('store_id', firstStoreId)
           .single();
         if (data) {
@@ -119,7 +119,28 @@ export default function CartPage() {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const total = subtotal + deliveryFee;
+  
+  // Calculate delivery fee with free shipping logic
+  const [minOrderFreeShipping, setMinOrderFreeShipping] = useState<number | null>(null);
+  useEffect(() => {
+    if (cart.length > 0) {
+      const firstStoreId = cart[0].storeId;
+      supabase
+        .from('store_settings')
+        .select('min_order_free_shipping')
+        .eq('store_id', firstStoreId)
+        .single()
+        .then(({ data }) => {
+          if (data?.min_order_free_shipping) {
+            setMinOrderFreeShipping(data.min_order_free_shipping);
+          }
+        });
+    }
+  }, [cart]);
+
+  // Calculate actual delivery fee (0 if subtotal >= min_order_free_shipping)
+  const actualDeliveryFee = minOrderFreeShipping && subtotal >= minOrderFreeShipping ? 0 : deliveryFee;
+  const total = subtotal + actualDeliveryFee;
   const isCodDisabled = paymentMethod === 'COD' && codMaxLimit && total > codMaxLimit;
 
   const handleCheckout = async () => {
@@ -151,15 +172,15 @@ export default function CartPage() {
     }
 
     // Redirect to confirmation page with cart data
-    const checkoutData = {
-      cart,
-      deliveryAddress,
-      notes,
-      paymentMethod,
-      subtotal,
-      deliveryFee,
-      total,
-    };
+      const checkoutData = {
+        cart,
+        deliveryAddress,
+        notes,
+        paymentMethod,
+        subtotal,
+        deliveryFee: actualDeliveryFee,
+        total,
+      };
     localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
     router.push('/user/checkout');
   };
@@ -359,21 +380,44 @@ export default function CartPage() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-xs">
-                  <strong>Penting:</strong> Pembayaran dilakukan langsung ke toko, bukan melalui aplikasi.
+                  <strong>Penting:</strong> Pesanan akan diproses setelah toko menyetujui alamat pengantaran. 
+                  Pembayaran dilakukan langsung ke toko, bukan melalui aplikasi.
                 </AlertDescription>
               </Alert>
+
+              {/* Free Shipping Info */}
+              {minOrderFreeShipping && (
+                <Alert className={subtotal >= minOrderFreeShipping ? 'bg-green-50 border-green-200' : ''}>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    {subtotal >= minOrderFreeShipping ? (
+                      <span className="text-green-700 font-semibold">🎉 Gratis Ongkir!</span>
+                    ) : (
+                      <span>
+                        Belanja minimal Rp {minOrderFreeShipping.toLocaleString('id-ID')} untuk gratis ongkir. 
+                        Kurang Rp {(minOrderFreeShipping - subtotal).toLocaleString('id-ID')}
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="pt-4 border-t space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
                   <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                 </div>
-                {deliveryFee > 0 && (
+                {actualDeliveryFee > 0 ? (
                   <div className="flex justify-between text-sm">
                     <span>Ongkir</span>
-                    <span>Rp {deliveryFee.toLocaleString('id-ID')}</span>
+                    <span>Rp {actualDeliveryFee.toLocaleString('id-ID')}</span>
                   </div>
-                )}
+                ) : minOrderFreeShipping && subtotal >= minOrderFreeShipping ? (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Ongkir</span>
+                    <span className="font-semibold">GRATIS 🎉</span>
+                  </div>
+                ) : null}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Total</span>
                   <span className="text-primary">Rp {total.toLocaleString('id-ID')}</span>

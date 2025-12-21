@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Get order to check ownership and get details
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('store_id, status, final_total, created_at, stores!inner(user_id)')
+      .select('store_id, status, total_price, final_total, created_at, stores!inner(user_id)')
       .eq('id', orderId)
       .single();
 
@@ -64,58 +64,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If status is 'selesai', create invoice automatically
+    // If status is 'selesai', add order to active period invoice
     if (newStatus === 'selesai') {
       try {
-        // Check if invoice already exists
-        const { data: existingInvoice } = await supabase
-          .from('invoices')
-          .select('id')
+        // Check if order already in an invoice
+        const { data: existingInvoiceOrder } = await supabase
+          .from('invoice_orders')
+          .select('invoice_id')
           .eq('order_id', orderId)
           .single();
 
-        if (!existingInvoice) {
-          // Get or create active period
-          const { data: period } = await supabase
-            .rpc('create_initial_store_period', { store_uuid: order.store_id });
-
-          // Calculate fee (5% of final_total)
-          const feeAmount = (order.final_total || 0) * 0.05;
-
-          // Create invoice
-          const { data: newInvoice, error: invoiceError } = await supabase
-            .from('invoices')
-            .insert({
-              store_id: order.store_id,
-              period_id: period || null,
-              order_id: orderId,
-              total_orders: 1,
-              total_revenue: order.final_total || 0,
-              fee_amount: feeAmount,
-              status: 'menunggu_pembayaran',
-              period_start: order.created_at || new Date().toISOString(),
-              period_end: new Date().toISOString(),
-            })
-            .select()
-            .single();
+        if (!existingInvoiceOrder) {
+          // Add order to active invoice for this period
+          const { data: invoiceId, error: invoiceError } = await supabase
+            .rpc('add_order_to_active_invoice_with_subtotal', {
+              store_uuid: order.store_id,
+              order_uuid: orderId,
+              order_subtotal: order.total_price || 0,
+            });
 
           if (invoiceError) {
-            console.error('Error creating invoice:', invoiceError);
+            console.error('Error adding order to invoice:', invoiceError);
             // Don't fail the request, just log the error
-          } else if (newInvoice) {
+          } else if (invoiceId) {
             // Create activity log
             await supabase
               .from('invoice_activity_logs')
               .insert({
-                invoice_id: newInvoice.id,
-                action: 'invoice_created',
-                description: 'Invoice dibuat otomatis saat order selesai',
+                invoice_id: invoiceId,
+                action: 'order_added',
+                description: `Order #${orderId.slice(0, 8)} ditambahkan ke invoice periode`,
+                performed_by: user.id,
               });
           }
         }
       } catch (invoiceError: any) {
-        console.error('Error in invoice creation:', invoiceError);
-        // Don't fail the request if invoice creation fails
+        console.error('Error in invoice update:', invoiceError);
+        // Don't fail the request if invoice update fails
       }
     }
 

@@ -49,6 +49,17 @@ export async function GET(request: NextRequest) {
           action,
           description,
           created_at
+        ),
+        invoice_orders(
+          id,
+          order_id,
+          order_revenue,
+          order_fee,
+          orders(
+            id,
+            created_at,
+            final_total
+          )
         )
       `, { count: 'exact' });
 

@@ -21,10 +21,10 @@ import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils/image';
 
 interface PayInvoiceButtonProps {
-  orderId: string;
+  orderId?: string; // Optional, for backward compatibility
   feeAmount?: number;
   amount?: number; // Alternative prop name
-  invoiceId?: string;
+  invoiceId?: string; // Preferred for period-based invoices
   orbQrisUrl?: string | null;
   onPaymentSuccess?: () => void;
   buttonText?: string; // Custom button text
@@ -135,7 +135,8 @@ export function PayInvoiceButton({
 
       // Upload to Supabase Storage
       const fileExt = compressedFile.name.split('.').pop();
-      const fileName = `invoice-payments/${orderId}-${Date.now()}.${fileExt}`;
+      const fileId = invoiceId || orderId || `invoice-${Date.now()}`;
+      const fileName = `invoice-payments/${fileId}-${Date.now()}.${fileExt}`;
 
       console.log('Attempting to upload payment proof:', {
         bucket: 'store-uploads',
@@ -185,8 +186,8 @@ export function PayInvoiceButton({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            orderId: orderId, // API will get or create invoice for this order
-            invoiceId: invoiceId, // Use invoiceId if provided
+            invoiceId: invoiceId || undefined, // Prefer invoiceId for period-based invoices
+            orderId: invoiceId ? undefined : orderId, // Use orderId only if invoiceId not provided (backward compatibility)
             paymentProofUrl: urlData.publicUrl,
           }),
         });

@@ -127,7 +127,8 @@ export default function CheckoutPage() {
       <Alert className="mb-6">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Penting:</strong> Pembayaran dilakukan langsung ke toko, bukan melalui aplikasi.
+          <strong>Penting:</strong> Pesanan akan diproses setelah toko menyetujui alamat pengantaran. 
+          Pembayaran dilakukan langsung ke toko, bukan melalui aplikasi.
         </AlertDescription>
       </Alert>
 

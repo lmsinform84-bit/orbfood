@@ -14,6 +14,7 @@ interface UpdateOrderStatusButtonProps {
 
 const statusFlow: Record<OrderStatus, OrderStatus[]> = {
   pending: ['diproses', 'dibatalkan'],
+  menunggu_persetujuan: [], // User harus setujui/tolak dulu
   diproses: ['diantar', 'dibatalkan'],
   diantar: [], // User harus konfirmasi diterima
   selesai: [],
@@ -24,6 +25,8 @@ const getStatusLabel = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
       return 'Terima Pesanan';
+    case 'menunggu_persetujuan':
+      return 'Menunggu Persetujuan User';
     case 'diproses':
       return 'Pesanan Diantar';
     case 'diantar':

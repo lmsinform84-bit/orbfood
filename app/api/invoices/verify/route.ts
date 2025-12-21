@@ -58,15 +58,29 @@ export async function POST(request: NextRequest) {
       }
       invoice = data;
     } else if (orderId) {
+      // Get invoice from invoice_orders
+      const { data: invoiceOrder, error: invoiceOrderError } = await supabase
+        .from('invoice_orders')
+        .select('invoice_id')
+        .eq('order_id', orderId)
+        .single();
+
+      if (invoiceOrderError || !invoiceOrder) {
+        return NextResponse.json(
+          { error: 'Order not found in any invoice. Please complete the order first.' },
+          { status: 404 }
+        );
+      }
+
       const { data, error } = await supabase
         .from('invoices')
         .select('*, store_id, period_id')
-        .eq('order_id', orderId)
+        .eq('id', invoiceOrder.invoice_id)
         .single();
       
       if (error || !data) {
         return NextResponse.json(
-          { error: 'Invoice not found for this order. Please create invoice first.' },
+          { error: 'Invoice not found' },
           { status: 404 }
         );
       }
@@ -79,18 +93,25 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'confirm') {
-      // Confirm payment: Mark invoice as LUNAS, close period, create new period
-      const { error: updateError } = await supabase.rpc('close_period_and_create_new', {
+      // Confirm payment: 
+      // 1. Tutup periode lama dan buat periode baru (periode baru dibuka saat invoice lunas)
+      // 2. Mark invoice as LUNAS
+      
+      // Step 1: Tutup periode lama dan buat periode baru
+      const { data: newPeriodId, error: periodError } = await supabase.rpc('close_period_and_create_new', {
         store_uuid: invoice.store_id,
         period_uuid: invoice.period_id,
       });
 
-      if (updateError) {
-        console.error('Error closing period:', updateError);
-        // Continue anyway, we'll update the invoice
+      if (periodError) {
+        console.error('Error closing period and creating new:', periodError);
+        return NextResponse.json(
+          { error: 'Gagal menutup periode dan membuat periode baru. ' + periodError.message },
+          { status: 500 }
+        );
       }
 
-      // Update invoice status to LUNAS
+      // Step 2: Update invoice status to LUNAS
       const { error: statusError } = await supabase
         .from('invoices')
         .update({
@@ -103,7 +124,7 @@ export async function POST(request: NextRequest) {
       if (statusError) {
         console.error('Error updating invoice status:', statusError);
         return NextResponse.json(
-          { error: 'Failed to update invoice status' },
+          { error: 'Gagal mengupdate status invoice. Periode sudah ditutup, silakan coba lagi.' },
           { status: 500 }
         );
       }
@@ -114,8 +135,8 @@ export async function POST(request: NextRequest) {
         .insert({
           invoice_id: invoice.id,
           action: 'payment_confirmed',
-          description: 'Pembayaran dikonfirmasi oleh admin. Invoice LUNAS.',
-          created_by_user_id: user.id,
+          description: 'Pembayaran dikonfirmasi oleh admin. Invoice LUNAS. Periode ditutup dan periode baru dimulai.',
+          performed_by: user.id,
         });
 
       return NextResponse.json({
@@ -159,7 +180,7 @@ export async function POST(request: NextRequest) {
           invoice_id: invoice.id,
           action: 'proof_rejected',
           description: 'Bukti pembayaran ditolak oleh admin. Silakan upload ulang.',
-          created_by_user_id: user.id,
+          performed_by: user.id,
         });
 
       return NextResponse.json({

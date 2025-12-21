@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       }
       invoice = data;
     } else if (orderId) {
-      // Get or create invoice for this order
+      // Get order to find its invoice
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .select('store_id, id')
@@ -72,53 +72,31 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Get or create invoice
-      let { data: existingInvoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .select('store_id, id')
+      // Get invoice from invoice_orders
+      const { data: invoiceOrder, error: invoiceOrderError } = await supabase
+        .from('invoice_orders')
+        .select('invoice_id')
         .eq('order_id', orderId)
         .single();
 
-      if (invoiceError && invoiceError.code === 'PGRST116') {
-        // Invoice doesn't exist, create it
-        const { data: period } = await supabase
-          .rpc('create_initial_store_period', { store_uuid: order.store_id });
-
-        const { data: orderDetails } = await supabase
-          .from('orders')
-          .select('final_total, created_at')
-          .eq('id', orderId)
-          .single();
-
-        const feeAmount = (orderDetails?.final_total || 0) * 0.05;
-
-        const { data: newInvoice, error: createError } = await supabase
-          .from('invoices')
-          .insert({
-            store_id: order.store_id,
-            period_id: period || null,
-            order_id: orderId,
-            total_orders: 1,
-            total_revenue: orderDetails?.final_total || 0,
-            fee_amount: feeAmount,
-            status: 'menunggu_pembayaran',
-            period_start: orderDetails?.created_at || new Date().toISOString(),
-            period_end: new Date().toISOString(),
-          })
-          .select('store_id, id')
-          .single();
-
-        if (createError || !newInvoice) {
-          return NextResponse.json(
-            { error: 'Failed to create invoice' },
-            { status: 500 }
-          );
-        }
-        existingInvoice = newInvoice;
-      } else if (invoiceError) {
+      if (invoiceOrderError || !invoiceOrder) {
         return NextResponse.json(
-          { error: 'Failed to get invoice' },
-          { status: 500 }
+          { error: 'Order not found in any invoice. Please complete the order first.' },
+          { status: 404 }
+        );
+      }
+
+      // Get invoice details
+      const { data: existingInvoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('store_id, id')
+        .eq('id', invoiceOrder.invoice_id)
+        .single();
+
+      if (invoiceError || !existingInvoice) {
+        return NextResponse.json(
+          { error: 'Invoice not found' },
+          { status: 404 }
         );
       }
 

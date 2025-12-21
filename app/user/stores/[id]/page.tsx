@@ -92,9 +92,9 @@ export default async function StorePage({
   return (
     <StorePageClient
       store={store}
-      products={products}
+          products={products} 
       selectedProductId={selectedProductId}
-    />
+        />
   );
 }
 
